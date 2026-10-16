@@ -17,6 +17,9 @@ export default function Page() {
   const [captionOn, setCaptionOn] = useState(false);
   const [faceLive, setFaceLive] = useState(false);
   const [youCorner, setYouCorner] = useState(false);
+  const [flip, setFlip] = useState(false);   // tap the circle to flip it; cameras differ in whether they mirror
+  useEffect(() => { try { setFlip(localStorage.getItem("flip") === "1"); } catch {} }, []);
+  const toggleFlip = () => setFlip((f) => { try { localStorage.setItem("flip", f ? "0" : "1"); } catch {} return !f; });
   const [readout, setReadout] = useState("528.00 · 532.50 · 4.50");
   const [phase, setPhase] = useState("");
   const [weather, setWeather] = useState("");
@@ -219,7 +222,7 @@ export default function Page() {
         <canvas className="orb" ref={canvasRef} aria-hidden="true" />
         <button className={`begin ${begun ? "gone" : ""}`} onClick={begin}>Begin</button>
       </div>
-      <div className={`you ${faceLive ? "live" : ""} ${youCorner ? "corner" : ""}`} ref={youRef}>
+      <div className={`you ${faceLive ? "live" : ""} ${youCorner ? "corner" : ""} ${flip ? "flip" : ""}`} ref={youRef} onClick={toggleFlip} title="tap to flip the mirror">
         <video ref={videoRef} muted playsInline />
       </div>
       <div className="band">
