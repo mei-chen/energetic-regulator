@@ -9,6 +9,7 @@ type Kind = "open" | "deepen" | "steady";
 export default function Page() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const youRef = useRef<HTMLDivElement>(null);
   const [begun, setBegun] = useState(false);
   const [caption, setCaption] = useState("");
   const [captionOn, setCaptionOn] = useState(false);
@@ -22,7 +23,7 @@ export default function Page() {
     audio: new Binaural(), face: null as FaceReader | null, faceState: { present: false, calibrated: false, ease: 0.5, trend: 0, eyesClosed: false, closedSeconds: 0, blinkRate: 0, stillness: 1 } as FaceState,
     hue: 350, passage: 0, passageAt: 0, startedAt: 0, passageBeat: 4.5, lastTune: 0, lastKind: "open" as Kind,
     whispers: [] as string[], spoken: [] as string[], whisperIdx: 0, whisperTimer: 0 as ReturnType<typeof setTimeout> | 0,
-    planning: false, deepSince: 0, tenseSince: 0, setWeather: (w: string) => {}, running: false,
+    planning: false, deepSince: 0, tenseSince: 0, faceLive: false, setWeather: (w: string) => {}, running: false,
     show: (t: string, ms: number) => {}, setPhase: (p: string) => {},
   });
   R.current.show = (t, ms) => { setCaption(t); setCaptionOn(true); setTimeout(() => setCaptionOn(false), ms); };
@@ -81,14 +82,14 @@ export default function Page() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: 480, height: 360 }, audio: false });
       const v = videoRef.current!; v.srcObject = stream; await v.play();
-      const face = new FaceReader(); await face.load(); r.face = face; setFaceLive(true);
+      const face = new FaceReader(); await face.load(); r.face = face; r.faceLive = true; setFaceLive(true);
     } catch (e) { console.warn("no camera; Oriel listens without a face", e); }
   }
   function end() {
     const r = R.current; r.running = false; clearTimeout(r.whisperTimer);
     r.show("The door stays open for you.", 6000);
     r.audio.stop(); const v = videoRef.current; (v?.srcObject as MediaStream | null)?.getTracks().forEach((t) => t.stop()); if (v) v.srcObject = null;
-    setBegun(false); setFaceLive(false); setPhase(""); setWeather(""); r.whispers = []; r.passage = 0;
+    r.faceLive = false; setBegun(false); setFaceLive(false); setPhase(""); setWeather(""); r.whispers = []; r.passage = 0;
   }
 
   // ----- the loop: draw the orb, read the face, feed the beat -----
@@ -143,23 +144,30 @@ export default function Page() {
       const sep = Rr * (0.03 + 0.3 * (1 - inhale));                       // sources meet on the in-breath
       const ph = reduced ? 0 : (t * r.audio.beat * 0.35) % 1;             // the right source drifts at the beat
       const lamR = lam * (1 + 0.012 * r.audio.beat);                      // slightly wider rings on the right: spacing beats in and out of step
-      const glow = r.running ? 0.045 + ease * 0.05 : 0.03;
+      const glow = r.running ? 0.09 + ease * 0.08 : 0.07;
       ctx.globalCompositeOperation = "lighter"; ctx.lineWidth = 1 + inhale * 0.8;
       for (const [sx, p, hs, L] of [[cx - sep, 0, 0, lam], [cx + sep, ph, 25, lamR]] as const) {
         const n = Math.ceil((Rr + sep) / L);
         for (let i = 0; i < n; i++) {
           const rad = (i + p) * L; if (rad <= 0) continue;
-          const a = glow * (0.55 + 0.45 * inhale) * (1 - rad / (Rr + sep));
+          const a = glow * (0.65 + 0.35 * inhale) * (1 - rad / (Rr + sep));
           ctx.strokeStyle = `hsla(${r.hue + hs},72%,72%,${a})`; ctx.beginPath(); ctx.arc(sx, cy, rad, 0, Math.PI * 2); ctx.stroke();
         }
       }
       ctx.globalCompositeOperation = "source-over";
-      const orbR = Rr * (0.12 + 0.07 * breathe + (r.running ? 0.05 + ease * 0.08 : 0));
+      const orbR = Rr * (0.13 + 0.055 * breathe + (r.running ? 0.05 + ease * 0.08 : 0));
       const og = ctx.createRadialGradient(cx, cy, 0, cx, cy, orbR * 2.6);
       og.addColorStop(0, `hsla(${r.hue + 20},80%,${74 + ease * 12 + inhale * 8}%,${r.running ? 0.95 : 0.55})`);
       og.addColorStop(0.3, `hsla(${r.hue},75%,60%,${(r.running ? 0.3 + ease * 0.3 : 0.22) * (0.7 + 0.3 * inhale)})`);
       og.addColorStop(1, `hsla(${r.hue},70%,40%,0)`);
       ctx.fillStyle = og; ctx.beginPath(); ctx.arc(cx, cy, orbR * 2.6, 0, Math.PI * 2); ctx.fill();
+      // you: the camera breathes with the orb, swelling and brightening on the in-breath
+      const you = youRef.current;
+      if (you) {
+        you.style.opacity = r.faceLive ? String(0.28 + 0.3 * inhale + ease * 0.15) : "0";
+        you.style.transform = `translateX(-50%) scale(${0.9 + 0.14 * inhale})`;
+        you.style.filter = `drop-shadow(0 0 ${8 + inhale * 22}px hsla(${r.hue},70%,65%,${0.25 + inhale * 0.3}))`;
+      }
       if (now - lastReadout > 250) { lastReadout = now; setReadout(`${r.audio.carrier.toFixed(2)} · ${(r.audio.carrier + r.audio.beat).toFixed(2)} · ${r.audio.beat.toFixed(2)}`); }
       raf = requestAnimationFrame(draw);
     };
@@ -167,7 +175,6 @@ export default function Page() {
     return () => cancelAnimationFrame(raf);
   }, []);
 
-  const ease = R.current.faceState.present ? R.current.faceState.ease : 0.5;
   return (
     <main className="screen">
       <div className="freq">{readout} hz</div>
@@ -175,9 +182,9 @@ export default function Page() {
         <canvas className="orb" ref={canvasRef} aria-hidden="true" />
         <button className={`begin ${begun ? "gone" : ""}`} onClick={begin}>Begin</button>
         <div className={`caption ${captionOn ? "show" : ""}`} aria-live="polite">{caption}</div>
-      </div>
-      <div className={`you ${faceLive ? "live" : ""}`} style={{ boxShadow: `0 0 ${12 + ease * 36}px hsla(${R.current.hue},70%,65%,${0.2 + ease * 0.5}), 0 0 0 1px rgba(228,163,168,.25)` }}>
-        <video ref={videoRef} muted playsInline />
+        <div className={`you ${faceLive ? "live" : ""}`} ref={youRef}>
+          <video ref={videoRef} muted playsInline />
+        </div>
       </div>
       {begun ? (
         <div className="foot">

@@ -16,12 +16,13 @@ canvas.orb { position: absolute; inset: 0; width: 100%; height: 100%; }
 .begin { position: absolute; inset: 0; display: grid; place-items: center; letter-spacing: .32em; text-transform: uppercase; font-size: 1rem; color: var(--fg); transition: opacity 1s; }
 .begin:hover { color: var(--gold); }
 .begin.gone { opacity: 0; pointer-events: none; }
-.you { position: fixed; left: max(20px, env(safe-area-inset-left)); bottom: max(20px, env(safe-area-inset-bottom)); width: 72px; height: 72px; border-radius: 50%; overflow: hidden; opacity: 0; transition: opacity 1.5s, box-shadow 1.5s; box-shadow: 0 0 0 1px rgba(228,163,168,.25); }
-.you.live { opacity: 1; }
-.you video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); filter: saturate(.6) contrast(1.05); }
+/* you: the camera, a feathered circle floating above the orb, breathing with it */
+.you { position: absolute; left: 50%; top: 2%; width: 27%; aspect-ratio: 1; transform: translateX(-50%); border-radius: 50%; overflow: hidden; opacity: 0; transition: opacity 1.2s; pointer-events: none;
+  -webkit-mask-image: radial-gradient(circle at center, #000 28%, rgba(0,0,0,.5) 48%, transparent 66%); mask-image: radial-gradient(circle at center, #000 28%, rgba(0,0,0,.5) 48%, transparent 66%); }
+.you video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); filter: saturate(.45) contrast(1.05) brightness(.9) sepia(.25); }
 .foot { position: fixed; right: max(22px, env(safe-area-inset-right)); bottom: max(26px, env(safe-area-inset-bottom)); display: flex; gap: 22px; align-items: baseline; font-size: .9rem; letter-spacing: .2em; text-transform: uppercase; color: var(--dim); }
 .foot button:hover { color: var(--fg); }
 .freq { position: fixed; left: 50%; transform: translateX(-50%); top: max(22px, env(safe-area-inset-top)); font-size: .9rem; letter-spacing: .22em; text-transform: uppercase; color: var(--dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .hint { position: fixed; left: 50%; transform: translateX(-50%); bottom: max(28px, env(safe-area-inset-bottom)); font-size: .9rem; letter-spacing: .2em; text-transform: uppercase; color: var(--dim); text-align: center; white-space: nowrap; }
-@media (max-width: 600px) { .foot { right: auto; left: 50%; transform: translateX(-50%); bottom: max(60px, env(safe-area-inset-bottom)); } .you { bottom: max(110px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); } .hint { bottom: max(28px, env(safe-area-inset-bottom)); } }
+@media (max-width: 600px) { .foot { right: auto; left: 50%; transform: translateX(-50%); bottom: max(60px, env(safe-area-inset-bottom)); } .hint { bottom: max(28px, env(safe-area-inset-bottom)); } }
 @media (prefers-reduced-motion: reduce) { .caption { transition: none; } }
