@@ -228,7 +228,7 @@ export default function Page() {
         <video ref={videoRef} muted playsInline />
       </div>
       <div className="band">
-        <p className={`intro ${begun ? "gone" : ""}`}>A binaural beat that reads your face. Headphones on, press Begin. The camera watches how you breathe and soften, and the sound and the pattern follow you.</p>
+        <p className={`intro ${begun ? "gone" : ""}`}>528 Hz is the frequency of love. Put on headphones and press Begin. The camera reads your face, and the sound and the pattern follow you.</p>
         <div className={`caption ${captionOn ? "show" : ""}`} ref={captionRef} aria-live="polite"><span>{caption}</span></div>
       </div>
       {begun ? (

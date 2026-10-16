@@ -2,7 +2,7 @@
 
 A binaural beat generator that dynamically reads your face and regulates your state.
 
-Energetic Regulator is a binaural beat generator with a feedback loop. Most meditation apps play you a track and leave it at that. This one watches what the track is doing to you and adjusts.
+528 Hz is the frequency of love. Energetic Regulator plays it as a binaural beat and reads your face while you listen. Most meditation apps play you a track and leave it at that. This one watches what the track is doing to you and adjusts.
 
 Put headphones on and press Begin. A slow binaural beat starts up inside some calm ambient music, and your camera starts reading your face. The video never leaves your device. For the first twenty seconds it just learns what your resting face looks like. After that, everything is measured against you rather than against some average person: whether you're softening or tightening, how still your head is, how often you blink, whether your eyes have drifted shut.
 
