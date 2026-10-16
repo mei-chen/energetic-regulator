@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { Binaural } from "@/lib/audio";
 import { FaceReader, type FaceState } from "@/lib/face";
 import type { PassageT } from "./api/passage/route";
+import { BreathingText } from "./BreathingText";
 
 type Kind = "open" | "deepen" | "steady";
 
@@ -268,8 +269,8 @@ export default function Page() {
         <video ref={videoRef} muted playsInline />
       </div>
       <div className="band">
-        <p className={`intro ${begun ? "gone" : ""}`}>528 Hz is the frequency of love. The camera calibrates to your face and modulates the sound.</p>
-        <div className={`caption ${captionOn ? "show" : ""}`} ref={captionRef} aria-live="polite"><span>{caption}</span></div>
+        <p className={`intro ${begun ? "gone" : ""}`}><BreathingText text="528 Hz is the frequency of love. The camera calibrates to your face and modulates the sound." intensity={0.25} depth={0.3} /></p>
+        <div className={`caption ${captionOn ? "show" : ""}`} ref={captionRef} aria-live="polite"><span><BreathingText text={caption} /></span></div>
       </div>
       {begun ? (
         <div className="foot">
