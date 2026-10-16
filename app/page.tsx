@@ -12,6 +12,7 @@ export default function Page() {
   const youRef = useRef<HTMLDivElement>(null);
   const captionRef = useRef<HTMLDivElement>(null);
   const markRef = useRef<HTMLDivElement>(null);
+  const floatRef = useRef<HTMLDivElement>(null);
   const sideRefs = useRef<(HTMLElement | null)[]>([null, null, null, null]);   // left mark, left value, right mark, right value
   const sidePos = (hz: number) => `${(1 - (Math.log(hz) - Math.log(150)) / (Math.log(700) - Math.log(150))) * 100}%`;
   const [begun, setBegun] = useState(false);
@@ -31,6 +32,7 @@ export default function Page() {
     audio: new Binaural(), face: null as FaceReader | null, faceState: { present: false, calibrated: false, ease: 0.5, trend: 0, eyesClosed: false, closedSeconds: 0, blinkRate: 0, stillness: 1, breath: 0, breathing: false } as FaceState,
     hue: 350, passage: 0, passageAt: 0, startedAt: 0, passageBeat: 4.5, lastTune: 0, lastKind: "open" as Kind,
     whispers: [] as string[], spoken: [] as string[], whisperIdx: 0, whisperTimer: 0 as ReturnType<typeof setTimeout> | 0,
+    affirmations: [] as string[], affIdx: 0, floatTimer: 0 as ReturnType<typeof setTimeout> | 0,
     planning: false, deepSince: 0, tenseSince: 0, faceLive: false, faceLiveAt: 0, cornered: false, setYouCorner: (v: boolean) => {}, setWeather: (w: string) => {}, running: false,
     show: (t: string, ms: number) => {}, setPhase: (p: string) => {},
   });
@@ -50,6 +52,25 @@ export default function Page() {
     r.whisperTimer = setTimeout(tick, 7000);
   }
 
+  // ----- affirmations: faint, rising through the background -----
+  function startFloating() {
+    const r = R.current; clearTimeout(r.floatTimer);
+    const tick = () => {
+      if (!r.running) return;
+      const host = floatRef.current;
+      if (host && r.affirmations.length) {
+        const el = document.createElement("span");
+        el.textContent = r.affirmations[r.affIdx++ % r.affirmations.length];
+        el.style.left = `${8 + Math.random() * 74}vw`; el.style.top = `${40 + Math.random() * 45}vh`;
+        el.style.animationDuration = `${26 + Math.random() * 12}s`;
+        el.addEventListener("animationend", () => el.remove());
+        host.appendChild(el);
+      }
+      r.floatTimer = setTimeout(tick, 5000 + Math.random() * 4000);
+    };
+    r.floatTimer = setTimeout(tick, 3000);
+  }
+
   // ----- Oriel plans a passage -----
   async function plan(kind: Kind) {
     const r = R.current; if (r.planning || !r.running) return;
@@ -67,6 +88,8 @@ export default function Page() {
       r.audio.tune(Math.min(963, Math.max(174, p.carrierHz)), r.passageBeat, 45);
       const short = p.whispers.filter((w) => w.trim().split(/\s+/).length <= 5);   // the type is huge: keep only what fits in a breath
       r.whispers = short.length >= 4 ? short : p.whispers; r.whisperIdx = 0; r.spoken.push(...p.whispers);
+      r.affirmations = p.affirmations.filter((w) => w.trim().split(/\s+/).length <= 7); r.affIdx = 0; r.spoken.push(...p.affirmations);
+      if (r.passage === 1) startFloating();
       r.setPhase(p.phase.toLowerCase());
       const hold = r.passage === 1 ? 10500 - (Date.now() - r.startedAt) : 0;     // let the first instruction be read
       if (hold > 0) await new Promise((res) => setTimeout(res, hold));
@@ -77,7 +100,8 @@ export default function Page() {
       console.warn("Oriel could not plan:", e);
       if (r.passage === 0) { // a scripted opening so the room still opens
         r.passage++; r.passageAt = Date.now(); r.whispers = ["the weight of your hands", "your breath is here", "all of it is welcome", "soft chest", "loved as you are", "warm belly", "room for everything", "home in this body"];
-        r.spoken.push(...r.whispers); r.setPhase("the opening");
+        r.affirmations = ["you are loved", "you are safe here", "nothing to earn", "you can rest now", "all of you is welcome", "you are held", "there is time", "you belong here"];
+        r.spoken.push(...r.whispers, ...r.affirmations); r.setPhase("the opening"); startFloating();
         r.show("528 and 532. The door opens.", 11000); setTimeout(startWhispering, 8000);
       }
     } finally { r.planning = false; }
@@ -99,7 +123,8 @@ export default function Page() {
     } catch (e) { console.warn("no camera; Oriel listens without a face", e); }
   }
   function end() {
-    const r = R.current; r.running = false; clearTimeout(r.whisperTimer);
+    const r = R.current; r.running = false; clearTimeout(r.whisperTimer); clearTimeout(r.floatTimer);
+    if (floatRef.current) floatRef.current.replaceChildren();
     r.show("the door stays open", 6000);
     r.audio.stop(); const v = videoRef.current; (v?.srcObject as MediaStream | null)?.getTracks().forEach((t) => t.stop()); if (v) v.srcObject = null;
     r.faceLive = false; r.cornered = false; setYouCorner(false); setBegun(false); setFaceLive(false); setPhase(""); setWeather(""); r.whispers = []; r.passage = 0;
@@ -224,6 +249,7 @@ export default function Page() {
 
   return (
     <main className="screen">
+      <div className="float" ref={floatRef} aria-hidden="true" />
       <div className="freq">{readout} hz</div>
       {[0, 2].map((i) => (
         <div className={`side ${i ? "r" : "l"}`} key={i} aria-hidden="true">

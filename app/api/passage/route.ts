@@ -6,6 +6,7 @@ const Passage = z.object({
   phase: z.string().describe("Two or three word name for this passage"),
   speak: z.string().describe("The invocation, shown in very large type beneath the orb for ten seconds: one short line, at most 9 words, naming the two tones by number. Recite the frequencies by number and name, then bring attention into one place in the body."),
   whispers: z.array(z.string()).describe("8 to 12 fragments shown one at a time in very large type. Strictly 2 to 4 words each, never more: a breath of language, not a sentence. Lowercase, no full stops, none repeated from before. Half point into the body (hands, chest, belly, jaw, breath, weight); half give permission to feel what is there, with love"),
+  affirmations: z.array(z.string()).describe("10 to 16 loving affirmations that drift faintly through the background, barely seen. 2 to 6 words, second person, present tense: you are loved, you are safe here, there is nothing to earn. Lowercase, no full stops, none repeated from before"),
   carrierHz: z.number().describe("174-639, the lower warmer tones. 528 love, 432 ease, 396 release, 417 change, 639 connection. Lower is deeper in the body"),
   beatHz: z.number().describe("2-7. Low theta 3-5.5 is the home range: the body, feeling, reverie. Open near 4-5, deepen toward 2.5-3.5. Go above 5.5 only briefly to steady someone who is drifting away"),
   hue: z.number().describe("0-360. 350 rose, 35 gold, 280 violet, 190 water"),
