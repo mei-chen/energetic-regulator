@@ -10,6 +10,7 @@ export default function Page() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const youRef = useRef<HTMLDivElement>(null);
+  const captionRef = useRef<HTMLDivElement>(null);
   const [begun, setBegun] = useState(false);
   const [caption, setCaption] = useState("");
   const [captionOn, setCaptionOn] = useState(false);
@@ -95,6 +96,7 @@ export default function Page() {
   // ----- the loop: draw the orb, read the face, feed the beat -----
   useEffect(() => {
     const canvas = canvasRef.current!, ctx = canvas.getContext("2d")!;
+    const fb = document.createElement("canvas"), fbx = fb.getContext("2d")!;   // last frame, for the trails
     const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
     let raf = 0, frame = 0, lastRead = 0, lastReadout = 0;
     const draw = (now: number) => {
@@ -134,33 +136,48 @@ export default function Page() {
         if (Date.now() - r.passageAt > 330000 && r.passage > 0 && !r.planning) void plan("deepen");
       }
       r.audio.tick();
-      // orb: two ring sources, one per ear. On the in-breath they draw together and the rings cohere into one bright
-      // concentric pattern; on the out-breath they part and the rings fall into drifting moire fringes. The breath is the
-      // same one the music swells with.
-      ctx.clearRect(0, 0, W, H);
+      // orb: two ring sources, one per ear, orbiting the centre. On the in-breath they draw together and the whole lattice
+      // dilates and coheres into one bright concentric bloom; on the out-breath they part, the lattice contracts and the rings
+      // fall into drifting moire fringes. Each frame is painted over a zoomed, slightly turned copy of the last, so every ring
+      // leaves a trail that spirals out on the in-breath and in on the out-breath. The hues drift through the spectrum.
       const breathe = reduced ? 0 : r.running ? r.audio.breath : Math.sin(t * 2 * Math.PI * 0.058);
       const inhale = (breathe + 1) / 2;                                   // 0 exhaled .. 1 inhaled
-      const lam = Math.max(7, 2600 / r.audio.carrier);
-      const sep = Rr * (0.03 + 0.3 * (1 - inhale));                       // sources meet on the in-breath
+      if (reduced) ctx.clearRect(0, 0, W, H);
+      else {
+        if (fb.width !== canvas.width || fb.height !== canvas.height) { fb.width = canvas.width; fb.height = canvas.height; }
+        fbx.clearRect(0, 0, fb.width, fb.height); fbx.drawImage(canvas, 0, 0);
+        ctx.clearRect(0, 0, W, H);
+        ctx.save(); ctx.globalAlpha = 0.84; ctx.translate(cx, cy); ctx.rotate(0.012 * breathe); const z = 1 + 0.03 * breathe; ctx.scale(z, z);
+        ctx.drawImage(fb, -cx, -cy, W, H); ctx.restore();
+      }
+      const drift = reduced ? 0 : t * 9;                                 // the slow walk through the spectrum
+      const lam = Math.max(6, 2600 / r.audio.carrier) * (0.7 + 0.6 * inhale); // the lattice dilates on the in-breath
+      const sep = Rr * (0.02 + 0.42 * (1 - inhale));                      // sources meet on the in-breath
+      const ang = reduced ? 0 : t * 0.07;                                 // and slowly orbit the centre
       const ph = reduced ? 0 : (t * r.audio.beat * 0.35) % 1;             // the right source drifts at the beat
-      const lamR = lam * (1 + 0.012 * r.audio.beat);                      // slightly wider rings on the right: spacing beats in and out of step
-      const glow = r.running ? 0.09 + ease * 0.08 : 0.07;
-      ctx.globalCompositeOperation = "lighter"; ctx.lineWidth = 1 + inhale * 0.8;
-      for (const [sx, p, hs, L] of [[cx - sep, 0, 0, lam], [cx + sep, ph, 25, lamR]] as const) {
+      const glow = r.running ? 0.085 + ease * 0.05 : 0.075;
+      ctx.globalCompositeOperation = "lighter"; ctx.lineWidth = 1 + inhale * 1.4;
+      for (const [sgn, p, hs, L] of [[-1, 0, 0, lam], [1, ph, 150, lam * (1 + 0.012 * r.audio.beat)]] as const) {
+        const sx = cx + sgn * sep * Math.cos(ang), sy = cy + sgn * sep * Math.sin(ang);
         const n = Math.ceil((Rr + sep) / L);
         for (let i = 0; i < n; i++) {
           const rad = (i + p) * L; if (rad <= 0) continue;
-          const a = glow * (0.65 + 0.35 * inhale) * (1 - rad / (Rr + sep));
-          ctx.strokeStyle = `hsla(${r.hue + hs},72%,72%,${a})`; ctx.beginPath(); ctx.arc(sx, cy, rad, 0, Math.PI * 2); ctx.stroke();
+          const a = glow * (0.85 + 0.15 * inhale) * (1 - rad / (Rr + sep));
+          ctx.strokeStyle = `hsla(${r.hue + hs + drift + i * (8 + 14 * inhale)},92%,68%,${a})`;
+          ctx.beginPath(); ctx.arc(sx, sy, rad, 0, Math.PI * 2); ctx.stroke();
         }
       }
+      // rings and trails live inside a soft circle, never the square of the canvas
+      const vg = ctx.createRadialGradient(cx, cy, Rr * 0.5, cx, cy, Rr * 0.98); vg.addColorStop(0, "rgba(0,0,0,1)"); vg.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.globalCompositeOperation = "destination-in"; ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
       ctx.globalCompositeOperation = "source-over";
-      const orbR = Rr * (0.13 + 0.055 * breathe + (r.running ? 0.05 + ease * 0.08 : 0));
+      const orbR = Rr * (0.12 + 0.08 * breathe + (r.running ? 0.05 + ease * 0.08 : 0));
       const og = ctx.createRadialGradient(cx, cy, 0, cx, cy, orbR * 2.6);
-      og.addColorStop(0, `hsla(${r.hue + 20},80%,${74 + ease * 12 + inhale * 8}%,${r.running ? 0.95 : 0.55})`);
-      og.addColorStop(0.3, `hsla(${r.hue},75%,60%,${(r.running ? 0.3 + ease * 0.3 : 0.22) * (0.7 + 0.3 * inhale)})`);
-      og.addColorStop(1, `hsla(${r.hue},70%,40%,0)`);
+      og.addColorStop(0, `hsla(${r.hue + 20 + drift},85%,${76 + ease * 10 + inhale * 10}%,${r.running ? 0.95 : 0.6})`);
+      og.addColorStop(0.3, `hsla(${r.hue + drift * 0.5},80%,60%,${(r.running ? 0.3 + ease * 0.3 : 0.25) * (0.6 + 0.4 * inhale)})`);
+      og.addColorStop(1, `hsla(${r.hue + 60 + drift},70%,40%,0)`);
       ctx.fillStyle = og; ctx.beginPath(); ctx.arc(cx, cy, orbR * 2.6, 0, Math.PI * 2); ctx.fill();
+      captionRef.current?.style.setProperty("--inhale", inhale.toFixed(3));   // the words breathe too
       // you: the camera breathes with the orb, swelling and brightening on the in-breath
       const you = youRef.current;
       if (you) {
@@ -181,7 +198,7 @@ export default function Page() {
       <div className="stage">
         <canvas className="orb" ref={canvasRef} aria-hidden="true" />
         <button className={`begin ${begun ? "gone" : ""}`} onClick={begin}>Begin</button>
-        <div className={`caption ${captionOn ? "show" : ""}`} aria-live="polite">{caption}</div>
+        <div className={`caption ${captionOn ? "show" : ""}`} ref={captionRef} aria-live="polite"><span>{caption}</span></div>
         <div className={`you ${faceLive ? "live" : ""}`} ref={youRef}>
           <video ref={videoRef} muted playsInline />
         </div>
