@@ -15,6 +15,7 @@ export default function Page() {
   const [caption, setCaption] = useState("");
   const [captionOn, setCaptionOn] = useState(false);
   const [faceLive, setFaceLive] = useState(false);
+  const [youCorner, setYouCorner] = useState(false);
   const [readout, setReadout] = useState("528.00 · 532.50 · 4.50");
   const [phase, setPhase] = useState("");
   const [weather, setWeather] = useState("");
@@ -24,12 +25,13 @@ export default function Page() {
     audio: new Binaural(), face: null as FaceReader | null, faceState: { present: false, calibrated: false, ease: 0.5, trend: 0, eyesClosed: false, closedSeconds: 0, blinkRate: 0, stillness: 1, breath: 0, breathing: false } as FaceState,
     hue: 350, passage: 0, passageAt: 0, startedAt: 0, passageBeat: 4.5, lastTune: 0, lastKind: "open" as Kind,
     whispers: [] as string[], spoken: [] as string[], whisperIdx: 0, whisperTimer: 0 as ReturnType<typeof setTimeout> | 0,
-    planning: false, deepSince: 0, tenseSince: 0, faceLive: false, setWeather: (w: string) => {}, running: false,
+    planning: false, deepSince: 0, tenseSince: 0, faceLive: false, faceLiveAt: 0, cornered: false, setYouCorner: (v: boolean) => {}, setWeather: (w: string) => {}, running: false,
     show: (t: string, ms: number) => {}, setPhase: (p: string) => {},
   });
   R.current.show = (t, ms) => { setCaption(t); setCaptionOn(true); setTimeout(() => setCaptionOn(false), ms); };
   R.current.setPhase = setPhase;
   R.current.setWeather = setWeather;
+  R.current.setYouCorner = setYouCorner;
 
   // ----- whispers: paced by the page, shown beneath the orb -----
   function startWhispering() {
@@ -87,14 +89,14 @@ export default function Page() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: 480, height: 360 }, audio: false });
       const v = videoRef.current!; v.srcObject = stream; await v.play();
-      const face = new FaceReader(); await face.load(); r.face = face; r.faceLive = true; setFaceLive(true);
+      const face = new FaceReader(); await face.load(); r.face = face; r.faceLive = true; r.faceLiveAt = Date.now(); r.cornered = false; setYouCorner(false); setFaceLive(true);
     } catch (e) { console.warn("no camera; Oriel listens without a face", e); }
   }
   function end() {
     const r = R.current; r.running = false; clearTimeout(r.whisperTimer);
     r.show("the door stays open", 6000);
     r.audio.stop(); const v = videoRef.current; (v?.srcObject as MediaStream | null)?.getTracks().forEach((t) => t.stop()); if (v) v.srcObject = null;
-    r.faceLive = false; setBegun(false); setFaceLive(false); setPhase(""); setWeather(""); r.whispers = []; r.passage = 0;
+    r.faceLive = false; r.cornered = false; setYouCorner(false); setBegun(false); setFaceLive(false); setPhase(""); setWeather(""); r.whispers = []; r.passage = 0;
   }
 
   // ----- the loop: draw the orb, read the face, feed the beat -----
@@ -190,10 +192,12 @@ export default function Page() {
       ctx.fillStyle = og; ctx.beginPath(); ctx.arc(cx, cy, orbR * 2.6, 0, Math.PI * 2); ctx.fill();
       captionRef.current?.style.setProperty("--inhale", inhale.toFixed(3));   // the words breathe too
       // you: the camera breathes with the orb, swelling and brightening on the in-breath
+      // once the baseline is taken (or half a minute has passed), it glides from the centre to the corner
+      if (r.faceLive && !r.cornered && (f.calibrated || Date.now() - r.faceLiveAt > 30000)) { r.cornered = true; r.setYouCorner(true); }
       const you = youRef.current;
       if (you) {
-        you.style.opacity = r.faceLive ? String(0.28 + 0.3 * inhale + ease * 0.15) : "0";
-        you.style.transform = `scale(${0.9 + 0.14 * inhale})`;
+        you.style.opacity = !r.faceLive ? "0" : r.cornered ? String(0.28 + 0.3 * inhale + ease * 0.15) : String(0.6 + 0.3 * inhale);
+        you.style.setProperty("--s", (0.9 + 0.14 * inhale).toFixed(3));
         you.style.filter = `drop-shadow(0 0 ${8 + inhale * 22}px hsla(${r.hue},70%,65%,${0.25 + inhale * 0.3}))`;
       }
       if (now - lastReadout > 250) { lastReadout = now; setReadout(`${r.audio.carrier.toFixed(2)} · ${(r.audio.carrier + r.audio.beat).toFixed(2)} · ${r.audio.beat.toFixed(2)}`); }
@@ -210,7 +214,7 @@ export default function Page() {
         <canvas className="orb" ref={canvasRef} aria-hidden="true" />
         <button className={`begin ${begun ? "gone" : ""}`} onClick={begin}>Begin</button>
       </div>
-      <div className={`you ${faceLive ? "live" : ""}`} ref={youRef}>
+      <div className={`you ${faceLive ? "live" : ""} ${youCorner ? "corner" : ""}`} ref={youRef}>
         <video ref={videoRef} muted playsInline />
       </div>
       <div className="band">

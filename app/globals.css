@@ -22,9 +22,11 @@ canvas.orb { position: absolute; inset: 0; width: 100%; height: 100%; }
 .begin { position: absolute; inset: 0; display: grid; place-items: center; letter-spacing: .32em; text-transform: uppercase; font-size: 1rem; color: var(--fg); transition: opacity 1s; }
 .begin:hover { color: var(--gold); }
 .begin.gone { opacity: 0; pointer-events: none; }
-/* you: the camera, a feathered mirror in the top-left corner, breathing with the orb */
-.you { position: fixed; left: max(18px, env(safe-area-inset-left)); top: max(18px, env(safe-area-inset-top)); width: min(24vmin, 170px); aspect-ratio: 1; transform-origin: 50% 50%; border-radius: 50%; overflow: hidden; opacity: 0; transition: opacity 1.2s; pointer-events: none;
+/* you: the camera. A big feathered mirror in the centre while your baseline is taken, then it glides to the top-left corner. */
+.you { --s: 1; position: fixed; left: 50%; top: calc(50% - 9vh); width: min(46vmin, 360px); aspect-ratio: 1; transform: translate(-50%, -50%) scale(var(--s)); border-radius: 50%; overflow: hidden; opacity: 0; pointer-events: none;
+  transition: opacity 1.2s, left 2.6s cubic-bezier(.6,0,.3,1), top 2.6s cubic-bezier(.6,0,.3,1), width 2.6s cubic-bezier(.6,0,.3,1);
   -webkit-mask-image: radial-gradient(circle at center, #000 28%, rgba(0,0,0,.5) 48%, transparent 66%); mask-image: radial-gradient(circle at center, #000 28%, rgba(0,0,0,.5) 48%, transparent 66%); }
+.you.corner { left: calc(max(18px, env(safe-area-inset-left)) + min(12vmin, 85px)); top: calc(max(18px, env(safe-area-inset-top)) + min(12vmin, 85px)); width: min(24vmin, 170px); }
 .you video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); filter: saturate(.45) contrast(1.05) brightness(.9) sepia(.25); }
 .foot { position: fixed; right: max(22px, env(safe-area-inset-right)); bottom: max(26px, env(safe-area-inset-bottom)); display: flex; gap: 22px; align-items: baseline; font-size: .9rem; letter-spacing: .2em; text-transform: uppercase; color: var(--dim); }
 .foot button:hover { color: var(--fg); }
