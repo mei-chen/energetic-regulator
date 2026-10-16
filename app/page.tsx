@@ -107,7 +107,8 @@ export default function Page() {
   useEffect(() => {
     const canvas = canvasRef.current!, ctx = canvas.getContext("2d")!;
     const fb = document.createElement("canvas"), fbx = fb.getContext("2d")!;   // last frame, for the trails
-    const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    // The breath is slow (many seconds per cycle) and nothing flashes, so the pattern keeps moving even with the OS "reduce motion" setting on.
+    const reduced = false;
     let raf = 0, frame = 0, lastRead = 0, lastReadout = 0, lastT = 0, orbit = 0;
     const draw = (now: number) => {
       const r = R.current; const t = now / 1000; frame++;
