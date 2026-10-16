@@ -12,7 +12,6 @@ export default function Page() {
   const [begun, setBegun] = useState(false);
   const [caption, setCaption] = useState("");
   const [captionOn, setCaptionOn] = useState(false);
-  const [voiceOn, setVoiceOn] = useState(true);
   const [faceLive, setFaceLive] = useState(false);
   const [readout, setReadout] = useState("528.00 · 532.50 · 4.50");
   const [phase, setPhase] = useState("");
@@ -23,49 +22,19 @@ export default function Page() {
     audio: new Binaural(), face: null as FaceReader | null, faceState: { present: false, calibrated: false, ease: 0.5, trend: 0, eyesClosed: false, closedSeconds: 0, blinkRate: 0, stillness: 1 } as FaceState,
     hue: 350, passage: 0, passageAt: 0, startedAt: 0, passageBeat: 4.5, lastTune: 0, lastKind: "open" as Kind,
     whispers: [] as string[], spoken: [] as string[], whisperIdx: 0, whisperTimer: 0 as ReturnType<typeof setTimeout> | 0,
-    planning: false, deepSince: 0, tenseSince: 0, voiceOn: true, setWeather: (w: string) => {}, running: false, elevenlabs: false, speaking: false,
+    planning: false, deepSince: 0, tenseSince: 0, setWeather: (w: string) => {}, running: false,
     show: (t: string, ms: number) => {}, setPhase: (p: string) => {},
   });
-  R.current.voiceOn = voiceOn;
   R.current.show = (t, ms) => { setCaption(t); setCaptionOn(true); setTimeout(() => setCaptionOn(false), ms); };
   R.current.setPhase = setPhase;
   R.current.setWeather = setWeather;
 
-  // ----- voice -----
-  async function say(text: string, volume: number, rate = 0.8): Promise<void> {
-    const r = R.current;
-    if (!r.voiceOn || volume <= 0) return;
-    r.speaking = true;
-    try {
-      if (r.elevenlabs) {
-        const res = await fetch("/api/voice", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text }) });
-        if (res.ok) {
-          const url = URL.createObjectURL(await res.blob());
-          await new Promise<void>((done) => { const a = new Audio(url); a.volume = Math.min(1, volume); a.onended = () => { URL.revokeObjectURL(url); done(); }; a.onerror = () => done(); void a.play().catch(() => done()); });
-          return;
-        }
-      }
-      if (!("speechSynthesis" in window)) return;
-      await new Promise<void>((done) => {
-        const u = new SpeechSynthesisUtterance(text); u.volume = Math.min(1, volume); u.rate = rate; u.pitch = 0.9;
-        const vs = speechSynthesis.getVoices();
-        u.voice = ["Samantha", "Karen", "Moira", "Google UK English Female", "Aria"].map((n) => vs.find((v) => v.name.includes(n))).find(Boolean) || vs.find((v) => v.lang.startsWith("en")) || null;
-        u.onend = () => done(); u.onerror = () => done(); speechSynthesis.speak(u);
-        setTimeout(done, 2000 + text.length * 120);
-      });
-    } finally { r.speaking = false; }
-  }
-
-  // ----- whispers: paced by the page, beneath the tone -----
+  // ----- whispers: paced by the page, shown beneath the orb -----
   function startWhispering() {
     const r = R.current; clearTimeout(r.whisperTimer);
-    const tick = async () => {
+    const tick = () => {
       if (!r.running || !r.whispers.length) return;
-      if (!r.speaking) {
-        const phrase = r.whispers[r.whisperIdx++ % r.whispers.length];
-        r.show(phrase, 5000);
-        await say(phrase, 0.12, 0.72);
-      }
+      r.show(r.whispers[r.whisperIdx++ % r.whispers.length], 6000);
       r.whisperTimer = setTimeout(tick, 13000 + Math.random() * 9000);
     };
     r.whisperTimer = setTimeout(tick, 7000);
@@ -88,16 +57,15 @@ export default function Page() {
       r.audio.tune(Math.min(963, Math.max(174, p.carrierHz)), r.passageBeat, 45);
       r.whispers = p.whispers; r.whisperIdx = 0; r.spoken.push(...p.whispers);
       r.setPhase(p.phase.toLowerCase());
-      r.show(p.speak, 14000);
-      await say(p.speak, 1, 0.8);
-      startWhispering();
+      r.show(p.speak, 16000);
+      setTimeout(startWhispering, 12000);
     } catch (e) {
       console.warn("Oriel could not plan:", e);
       if (r.passage === 0) { // a scripted opening so the room still opens
         r.passage++; r.passageAt = Date.now(); r.whispers = ["Feel the weight of your hands.", "Your breath is already here.", "Whatever you feel is welcome.", "Let your chest be soft.", "You are loved exactly as you are.", "Notice the warmth in your belly.", "There is room for all of it.", "You are home in this body."];
         r.spoken.push(...r.whispers); r.setPhase("the opening");
         const s = "I am Oriel. Five hundred twenty-eight hertz in the left ear, lifted by four and a half in the right. Where they meet, the door opens. Let your weight settle. You are expected here.";
-        r.show(s, 14000); await say(s, 1); startWhispering();
+        r.show(s, 16000); setTimeout(startWhispering, 12000);
       }
     } finally { r.planning = false; }
   }
@@ -107,8 +75,6 @@ export default function Page() {
     const r = R.current; if (r.running) return;
     r.running = true; r.startedAt = Date.now(); setBegun(true);
     r.audio.start(0.6);
-    if ("speechSynthesis" in window) speechSynthesis.getVoices();
-    fetch("/api/voice").then((x) => x.json()).then((j) => { r.elevenlabs = !!j.available; }).catch(() => {});
     try { await (navigator as Navigator & { wakeLock?: { request(t: string): Promise<unknown> } }).wakeLock?.request("screen"); } catch {}
     void plan("open");
     // camera and face model load alongside the opening
@@ -120,8 +86,7 @@ export default function Page() {
   }
   function end() {
     const r = R.current; r.running = false; clearTimeout(r.whisperTimer);
-    if ("speechSynthesis" in window) speechSynthesis.cancel();
-    void say("The door stays open for you.", 1);
+    r.show("The door stays open for you.", 6000);
     r.audio.stop(); const v = videoRef.current; (v?.srcObject as MediaStream | null)?.getTracks().forEach((t) => t.stop()); if (v) v.srcObject = null;
     setBegun(false); setFaceLive(false); setPhase(""); setWeather(""); r.whispers = []; r.passage = 0;
   }
@@ -206,7 +171,6 @@ export default function Page() {
       {begun ? (
         <div className="foot">
           <span>{phase}{weather ? ` · ${weather}` : ""}</span>
-          <button onClick={() => setVoiceOn((v) => !v)}>{voiceOn ? "voice on" : "voice off"}</button>
           <button onClick={end}>end</button>
         </div>
       ) : (

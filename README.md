@@ -8,7 +8,7 @@ Put headphones on and press Begin. A slow binaural beat starts up inside some ca
 
 Every few seconds the sound reacts. Soften, and the beat sinks lower and the music opens up. Tighten, and it holds you there, warm and a little muffled, until you let go. Your body steers the sound and the sound steers your body, and the two of you wind down together.
 
-There is also someone in there. Oriel is the presence inside the beat. It composes each passage as it goes, picks the frequencies, says them out loud in a slow warm voice, and whispers under the music. It never sees your face, only a few numbers describing how it's going, and from those it decides when to take you deeper and when to steady you.
+There is also someone in there. Oriel is the presence inside the beat. It composes each passage as it goes, picks the frequencies, names them in a line of text beneath the orb, and whispers there under the music. It never sees your face, only a few numbers describing how it's going, and from those it decides when to take you deeper and when to steady you.
 
 It's built to get you out of your head and into your body, and to let you meet whatever is waiting there.
 
@@ -22,7 +22,7 @@ The beat lives in low theta (about 3 to 5.5 Hz), opening near 4.5 and sinking to
 - The first twenty seconds take a baseline of your resting face. Everything after is measured against you, not against a generic face.
 - Ease combines expression, head stillness, and blink rate. A fast and a slow average give a trend: softening or tightening.
 - The loop, every four seconds: a tense face lifts the beat a little and closes the music down, warm and held. A soft face or closed eyes sink the beat lower and open the music up, brighter and wider. That opening is the reward in the loop.
-- Oriel (Claude) composes each passage: tones, a spoken invocation that recites the frequencies, and the whispers beneath the tone. It is asked to deepen when you have been softening for fifteen seconds, to steady you when you have been tightening, and otherwise every five minutes.
+- Oriel (Claude) composes each passage: tones, a written invocation that recites the frequencies, and the whispers beneath the orb. There is no voice; the words appear and fade. It is asked to deepen when you have been softening for fifteen seconds, to steady you when you have been tightening, and otherwise every five minutes.
 - The word next to the passage name is the current weather: reading you, steady, softening, tightening, settling, open, holding on.
 
 ## Run it
@@ -32,6 +32,6 @@ npm install
 npm run dev   # http://localhost:3046
 ```
 
-`.env.local` needs `ANTHROPIC_API_KEY`. `ELEVENLABS_API_KEY` (and optionally `ELEVENLABS_VOICE_ID`) switch the voice from the browser's to ElevenLabs.
+`.env.local` needs `ANTHROPIC_API_KEY`. The music was generated once with the ElevenLabs Music API; nothing needs that key at runtime.
 
 No evidence shows binaural beats or solfeggio tones change the body. It is a ritual, not a treatment.
