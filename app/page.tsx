@@ -102,7 +102,7 @@ export default function Page() {
         r.passage++; r.passageAt = Date.now(); r.whispers = ["the weight of your hands", "your breath is here", "all of it is welcome", "soft chest", "loved as you are", "warm belly", "room for everything", "home in this body"];
         r.affirmations = ["you are loved", "you are safe here", "nothing to earn", "you can rest now", "all of you is welcome", "you are held", "there is time", "you belong here"];
         r.spoken.push(...r.whispers, ...r.affirmations); r.setPhase("the opening"); startFloating();
-        r.show("528 and 532. The door opens.", 11000); setTimeout(startWhispering, 8000);
+        r.show("Breathe into your chest.", 11000); setTimeout(startWhispering, 8000);
       }
     } finally { r.planning = false; }
   }
