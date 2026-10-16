@@ -251,7 +251,7 @@ export default function Page() {
           <button onClick={end}>end</button>
         </div>
       ) : (
-        <div className="hint">headphones · your face stays on this device</div>
+        <div className="hint">headphones</div>
       )}
     </main>
   );
