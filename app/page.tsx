@@ -11,6 +11,7 @@ export default function Page() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const youRef = useRef<HTMLDivElement>(null);
   const captionRef = useRef<HTMLDivElement>(null);
+  const markRef = useRef<HTMLDivElement>(null);
   const [begun, setBegun] = useState(false);
   const [caption, setCaption] = useState("");
   const [captionOn, setCaptionOn] = useState(false);
@@ -200,7 +201,10 @@ export default function Page() {
         you.style.setProperty("--s", (0.9 + 0.14 * inhale).toFixed(3));
         you.style.filter = `drop-shadow(0 0 ${8 + inhale * 22}px hsla(${r.hue},70%,65%,${0.25 + inhale * 0.3}))`;
       }
-      if (now - lastReadout > 250) { lastReadout = now; setReadout(`${r.audio.carrier.toFixed(2)} · ${(r.audio.carrier + r.audio.beat).toFixed(2)} · ${r.audio.beat.toFixed(2)}`); }
+      if (now - lastReadout > 250) {
+        lastReadout = now; setReadout(`${r.audio.carrier.toFixed(2)} · ${(r.audio.carrier + r.audio.beat).toFixed(2)} · ${r.audio.beat.toFixed(2)}`);
+        const m = markRef.current; if (m) { m.style.left = `${Math.max(0, Math.min(100, (r.audio.beat - 2) / 5 * 100))}%`; m.style.boxShadow = `0 0 10px 2px hsla(${r.hue},70%,70%,.55)`; }
+      }
       raf = requestAnimationFrame(draw);
     };
     raf = requestAnimationFrame(draw);
@@ -210,6 +214,7 @@ export default function Page() {
   return (
     <main className="screen">
       <div className="freq">{readout} hz</div>
+      <div className="scale" aria-hidden="true"><span className="tick" /><div className="mark" ref={markRef} style={{ left: "50%" }} /><span className="l">delta</span><span className="r">theta</span></div>
       <div className="stage">
         <canvas className="orb" ref={canvasRef} aria-hidden="true" />
         <button className={`begin ${begun ? "gone" : ""}`} onClick={begin}>Begin</button>

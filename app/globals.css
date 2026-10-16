@@ -31,6 +31,18 @@ canvas.orb { position: absolute; inset: 0; width: 100%; height: 100%; }
 .foot { position: fixed; right: max(22px, env(safe-area-inset-right)); bottom: max(26px, env(safe-area-inset-bottom)); display: flex; gap: 22px; align-items: baseline; font-size: .9rem; letter-spacing: .2em; text-transform: uppercase; color: var(--dim); }
 .foot button:hover { color: var(--fg); }
 .freq { position: fixed; left: 50%; transform: translateX(-50%); top: max(22px, env(safe-area-inset-top)); font-size: .9rem; letter-spacing: .22em; text-transform: uppercase; color: var(--dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* the beat on a scale from 2 to 7 Hz: delta on the left, theta on the right */
+.scale { position: fixed; left: 50%; transform: translateX(-50%); top: calc(max(22px, env(safe-area-inset-top)) + 2.2em); width: min(260px, 60vw); height: 1px; background: rgba(239,230,220,.22); }
+.scale .mark { position: absolute; top: 50%; width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px; border-radius: 50%; background: var(--fg); box-shadow: 0 0 10px 2px hsla(350,70%,70%,.55); transition: left 1s linear; }
+.scale .l, .scale .r { position: absolute; top: .55em; font-size: .62rem; letter-spacing: .22em; text-transform: uppercase; color: var(--dim); }
+.scale .l { left: 0; } .scale .r { right: 0; }
+.scale .tick { position: absolute; top: -3px; width: 1px; height: 7px; background: rgba(239,230,220,.28); left: 40%; }
 .hint { position: fixed; left: 50%; transform: translateX(-50%); bottom: max(28px, env(safe-area-inset-bottom)); font-size: .9rem; letter-spacing: .2em; text-transform: uppercase; color: var(--dim); text-align: center; white-space: nowrap; }
-@media (max-width: 600px) { .foot { right: auto; left: 50%; transform: translateX(-50%); bottom: max(60px, env(safe-area-inset-bottom)); } .hint { bottom: max(28px, env(safe-area-inset-bottom)); } }
+@media (max-width: 600px) { .foot { right: auto; left: 50%; transform: translateX(-50%); bottom: max(60px, env(safe-area-inset-bottom)); } /* the beat on a scale from 2 to 7 Hz: delta on the left, theta on the right */
+.scale { position: fixed; left: 50%; transform: translateX(-50%); top: calc(max(22px, env(safe-area-inset-top)) + 2.2em); width: min(260px, 60vw); height: 1px; background: rgba(239,230,220,.22); }
+.scale .mark { position: absolute; top: 50%; width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px; border-radius: 50%; background: var(--fg); box-shadow: 0 0 10px 2px hsla(350,70%,70%,.55); transition: left 1s linear; }
+.scale .l, .scale .r { position: absolute; top: .55em; font-size: .62rem; letter-spacing: .22em; text-transform: uppercase; color: var(--dim); }
+.scale .l { left: 0; } .scale .r { right: 0; }
+.scale .tick { position: absolute; top: -3px; width: 1px; height: 7px; background: rgba(239,230,220,.28); left: 40%; }
+.hint { bottom: max(28px, env(safe-area-inset-bottom)); } }
 @media (prefers-reduced-motion: reduce) { .caption { transition: none; } }
