@@ -4,8 +4,8 @@ import { NextResponse } from "next/server";
 
 const Passage = z.object({
   phase: z.string().describe("Two or three word name for this passage"),
-  speak: z.string().describe("The invocation, shown as text beneath the orb for a quarter minute: 2-3 slow sentences, under 50 words, easy to read at a glance. Recite the frequencies by number and name, then bring attention into one place in the body."),
-  whispers: z.array(z.string()).describe("8 to 12 short phrases shown one at a time beneath the orb, each under 10 words, none repeated from before. Half point into the body (hands, chest, belly, jaw, breath, weight); half give permission to feel what is there, with love"),
+  speak: z.string().describe("The invocation, shown in very large type beneath the orb for ten seconds: one line, 6 to 12 words, naming the two tones by number. Recite the frequencies by number and name, then bring attention into one place in the body."),
+  whispers: z.array(z.string()).describe("8 to 12 fragments shown one at a time in very large type, 2 to 5 words each, lowercase, no full stops, none repeated from before. Half point into the body (hands, chest, belly, jaw, breath, weight); half give permission to feel what is there, with love"),
   carrierHz: z.number().describe("174-639, the lower warmer tones. 528 love, 432 ease, 396 release, 417 change, 639 connection. Lower is deeper in the body"),
   beatHz: z.number().describe("2-7. Low theta 3-5.5 is the home range: the body, feeling, reverie. Open near 4-5, deepen toward 2.5-3.5. Go above 5.5 only briefly to steady someone who is drifting away"),
   hue: z.number().describe("0-360. 350 rose, 35 gold, 280 violet, 190 water"),

@@ -10,6 +10,8 @@ export type FaceState = {
   closedSeconds: number;
   blinkRate: number;     // blinks per minute over the last minute
   stillness: number;     // 0..1, how still the head is
+  breath: number;        // -1..1, the listener's own breath read from the slow rise and fall of the head (+1 = in-breath)
+  breathing: boolean;    // true when that signal is strong enough to trust
 };
 
 const WASM = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.1.1/wasm";
@@ -29,7 +31,10 @@ export class FaceReader {
   private lastNose: { x: number; y: number } | null = null;
   private motion = 0;
   private lastT = 0;
-  state: FaceState = { present: false, calibrated: false, ease: 0.5, trend: 0, eyesClosed: false, closedSeconds: 0, blinkRate: 0, stillness: 1 };
+  private bFast: number | null = null;   // nose height, ~0.4 s
+  private bSlow: number | null = null;   // nose height, ~5 s (posture)
+  private bEnv = 0;                      // envelope of the difference
+  state: FaceState = { present: false, calibrated: false, ease: 0.5, trend: 0, eyesClosed: false, closedSeconds: 0, blinkRate: 0, stillness: 1, breath: 0, breathing: false };
 
   async load() {
     const files = await FilesetResolver.forVisionTasks(WASM);
@@ -65,6 +70,17 @@ export class FaceReader {
     this.lastNose = { x: nose.x, y: nose.y };
     const stillness = Math.max(0, Math.min(1, 1 - this.motion / 0.12));
 
+    // breath: the head rises a little on the in-breath and settles on the out-breath. Band-pass the nose height
+    // between posture drift (slow) and jitter (fast), then scale by its own recent envelope.
+    const eyeDist = Math.max(0.02, Math.hypot(pts[33].x - pts[263].x, pts[33].y - pts[263].y));
+    const h = nose.y / eyeDist;                                          // nose height in face units: steady under zoom
+    this.bFast = this.bFast === null ? h : this.bFast + (h - this.bFast) * (1 - Math.exp(-dt / 0.4));
+    this.bSlow = this.bSlow === null ? h : this.bSlow + (h - this.bSlow) * (1 - Math.exp(-dt / 5));
+    const diff = this.bSlow - this.bFast;                                // up on screen is smaller y: positive = rising
+    this.bEnv += (Math.abs(diff) - this.bEnv) * (1 - Math.exp(-dt / 8));
+    const breathing = this.bEnv > 0.006 && this.motion < 0.08;           // enough rise and fall, and not just moving about
+    const breath = breathing ? Math.max(-1, Math.min(1, diff / (this.bEnv * 1.5))) : 0;
+
     // blinks: count closures; eyes "closed" after 2.5 s of closure
     const closed = blink > 0.5;
     if (closed && !this.wasClosed) this.blinks.push(now);
@@ -97,7 +113,7 @@ export class FaceReader {
     const base = this.baseline ?? 0.5;
     const ease = Math.max(0, Math.min(1, 0.5 + (this.fast - base) * 2));
     const trend = Math.max(-1, Math.min(1, (this.fast - this.slow) * 5));
-    this.state = { present: true, calibrated: this.baseline !== null, ease, trend, eyesClosed, closedSeconds, blinkRate, stillness };
+    this.state = { present: true, calibrated: this.baseline !== null, ease, trend, eyesClosed, closedSeconds, blinkRate, stillness, breath, breathing };
     return this.state;
   }
 }

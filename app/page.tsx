@@ -21,7 +21,7 @@ export default function Page() {
 
   // Everything that runs per frame lives in refs so the loop never re-subscribes.
   const R = useRef({
-    audio: new Binaural(), face: null as FaceReader | null, faceState: { present: false, calibrated: false, ease: 0.5, trend: 0, eyesClosed: false, closedSeconds: 0, blinkRate: 0, stillness: 1 } as FaceState,
+    audio: new Binaural(), face: null as FaceReader | null, faceState: { present: false, calibrated: false, ease: 0.5, trend: 0, eyesClosed: false, closedSeconds: 0, blinkRate: 0, stillness: 1, breath: 0, breathing: false } as FaceState,
     hue: 350, passage: 0, passageAt: 0, startedAt: 0, passageBeat: 4.5, lastTune: 0, lastKind: "open" as Kind,
     whispers: [] as string[], spoken: [] as string[], whisperIdx: 0, whisperTimer: 0 as ReturnType<typeof setTimeout> | 0,
     planning: false, deepSince: 0, tenseSince: 0, faceLive: false, setWeather: (w: string) => {}, running: false,
@@ -36,7 +36,7 @@ export default function Page() {
     const r = R.current; clearTimeout(r.whisperTimer);
     const tick = () => {
       if (!r.running || !r.whispers.length) return;
-      r.show(r.whispers[r.whisperIdx++ % r.whispers.length], 6000);
+      r.show(r.whispers[r.whisperIdx++ % r.whispers.length], 6500);
       r.whisperTimer = setTimeout(tick, 13000 + Math.random() * 9000);
     };
     r.whisperTimer = setTimeout(tick, 7000);
@@ -59,15 +59,14 @@ export default function Page() {
       r.audio.tune(Math.min(963, Math.max(174, p.carrierHz)), r.passageBeat, 45);
       r.whispers = p.whispers; r.whisperIdx = 0; r.spoken.push(...p.whispers);
       r.setPhase(p.phase.toLowerCase());
-      r.show(p.speak, 16000);
-      setTimeout(startWhispering, 12000);
+      r.show(p.speak, 11000);
+      setTimeout(startWhispering, 8000);
     } catch (e) {
       console.warn("Oriel could not plan:", e);
       if (r.passage === 0) { // a scripted opening so the room still opens
-        r.passage++; r.passageAt = Date.now(); r.whispers = ["Feel the weight of your hands.", "Your breath is already here.", "Whatever you feel is welcome.", "Let your chest be soft.", "You are loved exactly as you are.", "Notice the warmth in your belly.", "There is room for all of it.", "You are home in this body."];
+        r.passage++; r.passageAt = Date.now(); r.whispers = ["the weight of your hands", "your breath is here", "all of it is welcome", "soft chest", "loved as you are", "warm belly", "room for everything", "home in this body"];
         r.spoken.push(...r.whispers); r.setPhase("the opening");
-        const s = "I am Oriel. Five hundred twenty-eight hertz in the left ear, lifted by four and a half in the right. Where they meet, the door opens. Let your weight settle. You are expected here.";
-        r.show(s, 16000); setTimeout(startWhispering, 12000);
+        r.show("528 and 532. The door opens.", 11000); setTimeout(startWhispering, 8000);
       }
     } finally { r.planning = false; }
   }
@@ -88,7 +87,7 @@ export default function Page() {
   }
   function end() {
     const r = R.current; r.running = false; clearTimeout(r.whisperTimer);
-    r.show("The door stays open for you.", 6000);
+    r.show("the door stays open", 6000);
     r.audio.stop(); const v = videoRef.current; (v?.srcObject as MediaStream | null)?.getTracks().forEach((t) => t.stop()); if (v) v.srcObject = null;
     r.faceLive = false; setBegun(false); setFaceLive(false); setPhase(""); setWeather(""); r.whispers = []; r.passage = 0;
   }
@@ -98,16 +97,20 @@ export default function Page() {
     const canvas = canvasRef.current!, ctx = canvas.getContext("2d")!;
     const fb = document.createElement("canvas"), fbx = fb.getContext("2d")!;   // last frame, for the trails
     const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-    let raf = 0, frame = 0, lastRead = 0, lastReadout = 0;
+    let raf = 0, frame = 0, lastRead = 0, lastReadout = 0, lastT = 0, orbit = 0;
     const draw = (now: number) => {
       const r = R.current; const t = now / 1000; frame++;
+      const dt = lastT ? Math.min(0.1, t - lastT) : 0.016; lastT = t;
       // size
       const rect = canvas.getBoundingClientRect(), dpr = Math.min(2, devicePixelRatio || 1);
       if (canvas.width !== Math.round(rect.width * dpr)) { canvas.width = Math.round(rect.width * dpr); canvas.height = Math.round(rect.height * dpr); }
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       const W = rect.width, H = rect.height, cx = W / 2, cy = H / 2, Rr = Math.min(W, H) / 2;
       // face, ~15 fps
-      if (r.face && videoRef.current && now - lastRead > 66) { lastRead = now; r.faceState = r.face.read(videoRef.current, now); }
+      if (r.face && videoRef.current && now - lastRead > 66) {
+        lastRead = now; r.faceState = r.face.read(videoRef.current, now);
+        if (r.running) r.audio.setBreath(r.faceState.present && r.faceState.breathing ? r.faceState.breath : null);
+      }
       const f = r.faceState, ease = f.present ? f.ease : 0.5;
       // the loop. tense lifts the beat a little and closes the music down, warm and held; soft sinks the beat toward delta and opens the music.
       if (r.running && f.present && now - r.lastTune > 4000) {
@@ -147,13 +150,14 @@ export default function Page() {
         if (fb.width !== canvas.width || fb.height !== canvas.height) { fb.width = canvas.width; fb.height = canvas.height; }
         fbx.clearRect(0, 0, fb.width, fb.height); fbx.drawImage(canvas, 0, 0);
         ctx.clearRect(0, 0, W, H);
-        ctx.save(); ctx.globalAlpha = 0.84; ctx.translate(cx, cy); ctx.rotate(0.012 * breathe); const z = 1 + 0.03 * breathe; ctx.scale(z, z);
+        ctx.save(); ctx.globalAlpha = 0.84; ctx.translate(cx, cy); ctx.rotate(0.006 + 0.02 * breathe); const z = 1 + 0.03 * breathe; ctx.scale(z, z);
         ctx.drawImage(fb, -cx, -cy, W, H); ctx.restore();
       }
       const drift = reduced ? 0 : t * 9;                                 // the slow walk through the spectrum
       const lam = Math.max(6, 2600 / r.audio.carrier) * (0.7 + 0.6 * inhale); // the lattice dilates on the in-breath
       const sep = Rr * (0.02 + 0.42 * (1 - inhale));                      // sources meet on the in-breath
-      const ang = reduced ? 0 : t * 0.07;                                 // and slowly orbit the centre
+      orbit += reduced ? 0 : dt * (0.08 + 0.5 * inhale);                  // and orbit the centre, quickening on the in-breath
+      const ang = orbit;
       const ph = reduced ? 0 : (t * r.audio.beat * 0.35) % 1;             // the right source drifts at the beat
       const glow = r.running ? 0.085 + ease * 0.05 : 0.075;
       ctx.globalCompositeOperation = "lighter"; ctx.lineWidth = 1 + inhale * 1.4;
@@ -198,11 +202,11 @@ export default function Page() {
       <div className="stage">
         <canvas className="orb" ref={canvasRef} aria-hidden="true" />
         <button className={`begin ${begun ? "gone" : ""}`} onClick={begin}>Begin</button>
-        <div className={`caption ${captionOn ? "show" : ""}`} ref={captionRef} aria-live="polite"><span>{caption}</span></div>
         <div className={`you ${faceLive ? "live" : ""}`} ref={youRef}>
           <video ref={videoRef} muted playsInline />
         </div>
       </div>
+      <div className={`caption ${captionOn ? "show" : ""}`} ref={captionRef} aria-live="polite"><span>{caption}</span></div>
       {begun ? (
         <div className="foot">
           <span>{phase}{weather ? ` · ${weather}` : ""}</span>

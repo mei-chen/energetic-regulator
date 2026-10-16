@@ -20,6 +20,7 @@ The beat lives in low theta (about 3 to 5.5 Hz), opening near 4.5 and sinking to
 - Inside the music, each ear gets a quiet pure sine a few hertz apart. Your brain hears the difference as a slow beat.
 - Your camera reads your face on this device only, with MediaPipe blendshapes. Nothing is uploaded.
 - The first twenty seconds take a baseline of your resting face. Everything after is measured against you, not against a generic face.
+- Breath is read from the slow rise and fall of the head. When that signal is clear, the music swells and the pattern breathes with your breath instead of its own slow one.
 - Ease combines expression, head stillness, and blink rate. A fast and a slow average give a trend: softening or tightening.
 - The loop, every four seconds: a tense face lifts the beat a little and closes the music down, warm and held. A soft face or closed eyes sink the beat lower and open the music up, brighter and wider. That opening is the reward in the loop.
 - Oriel (Claude) composes each passage: tones, a written invocation that recites the frequencies, and the whispers beneath the orb. There is no voice; the words appear and fade. It is asked to deepen when you have been softening for fifteen seconds, to steady you when you have been tightening, and otherwise every five minutes.

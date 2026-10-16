@@ -18,6 +18,8 @@ export class Binaural {
   private pos = 0;
   private nextQueued = false;
   private breathStart = 0;
+  private breathLfo!: GainNode;
+  private faceBreath: number | null = null;
   carrier = 528;
   beat = 4.5;
   private targetCarrier = 528;
@@ -43,7 +45,7 @@ export class Binaural {
     // the breath: a slow, clearly felt swell on the music, about three and a half breaths a minute
     const breath = ac.createOscillator(); breath.frequency.value = BREATH_HZ;
     const bg = ac.createGain(); bg.gain.value = MUSIC * 0.3; breath.connect(bg); bg.connect(this.music.gain);
-    this.breathStart = ac.currentTime; breath.start(this.breathStart);
+    this.breathLfo = bg; this.breathStart = ac.currentTime; breath.start(this.breathStart);
     this.master.gain.setTargetAtTime(volume, ac.currentTime, 2.5);
     void this.loadAndPlay();
   }
@@ -115,7 +117,16 @@ export class Binaural {
   }
 
   stop() { if (this.ac) this.master.gain.setTargetAtTime(0, this.ac.currentTime, 1.5); }
-  /** -1..1, the same breath the music is swelling with, so the orb can breathe in time with it. */
-  get breath() { return this.ac ? Math.sin((this.ac.currentTime - this.breathStart) * 2 * Math.PI * BREATH_HZ) : 0; }
+  /** Hand the music the listener's own breath (-1..1), or null to let it breathe on its own. */
+  setBreath(v: number | null) {
+    if (!this.ac) return;
+    const now = this.ac.currentTime, was = this.faceBreath !== null;
+    this.faceBreath = v;
+    if (v === null) { if (was) { this.breathLfo.gain.setTargetAtTime(MUSIC * 0.3, now, 3); this.music.gain.setTargetAtTime(MUSIC, now, 3); } return; }
+    if (!was) this.breathLfo.gain.setTargetAtTime(0, now, 3);
+    this.music.gain.setTargetAtTime(MUSIC * (1 + 0.3 * v), now, 0.35);
+  }
+  /** -1..1, the breath the music is swelling with: the listener's own when the face gives one, otherwise its own slow one. */
+  get breath() { return this.faceBreath ?? (this.ac ? Math.sin((this.ac.currentTime - this.breathStart) * 2 * Math.PI * BREATH_HZ) : 0); }
   get targets() { return { carrier: this.targetCarrier, beat: this.targetBeat }; }
 }
