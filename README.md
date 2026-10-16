@@ -23,7 +23,7 @@ The beat lives in low theta (about 3 to 5.5 Hz), opening near 4.5 and sinking to
 - Breath is read from the slow rise and fall of the head. When that signal is clear, the music swells and the pattern breathes with your breath instead of its own slow one.
 - Ease combines expression, head stillness, and blink rate. A fast and a slow average give a trend: softening or tightening.
 - The loop, every four seconds: a tense face lifts the beat a little and closes the music down, warm and held. A soft face or closed eyes sink the beat lower and open the music up, brighter and wider. That opening is the reward in the loop.
-- Oriel (Claude) composes each passage: tones, a written invocation that recites the frequencies, and the whispers beneath the orb. There is no voice; the words appear and fade. It is asked to deepen when you have been softening for fifteen seconds, to steady you when you have been tightening, and otherwise every five minutes.
+- Oriel (Claude) composes each passage: tones, one line of invocation that points into the body, the whispers beneath the orb, and the faint affirmations drifting through the background. There is no voice; the words appear and fade. It is asked to deepen when you have been softening for fifteen seconds, to steady you when you have been tightening, and otherwise every five minutes.
 - The word next to the passage name is the current weather: reading you, steady, softening, tightening, settling, open, holding on.
 
 ## Run it
