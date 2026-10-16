@@ -1,0 +1,217 @@
+"use client";
+import { useEffect, useRef, useState } from "react";
+import { Binaural } from "@/lib/audio";
+import { FaceReader, type FaceState } from "@/lib/face";
+import type { PassageT } from "./api/passage/route";
+
+type Kind = "open" | "deepen" | "steady";
+
+export default function Page() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [begun, setBegun] = useState(false);
+  const [caption, setCaption] = useState("");
+  const [captionOn, setCaptionOn] = useState(false);
+  const [voiceOn, setVoiceOn] = useState(true);
+  const [faceLive, setFaceLive] = useState(false);
+  const [readout, setReadout] = useState("528.00 · 532.50 · 4.50");
+  const [phase, setPhase] = useState("");
+  const [weather, setWeather] = useState("");
+
+  // Everything that runs per frame lives in refs so the loop never re-subscribes.
+  const R = useRef({
+    audio: new Binaural(), face: null as FaceReader | null, faceState: { present: false, calibrated: false, ease: 0.5, trend: 0, eyesClosed: false, closedSeconds: 0, blinkRate: 0, stillness: 1 } as FaceState,
+    hue: 350, passage: 0, passageAt: 0, startedAt: 0, passageBeat: 4.5, lastTune: 0, lastKind: "open" as Kind,
+    whispers: [] as string[], spoken: [] as string[], whisperIdx: 0, whisperTimer: 0 as ReturnType<typeof setTimeout> | 0,
+    planning: false, deepSince: 0, tenseSince: 0, voiceOn: true, setWeather: (w: string) => {}, running: false, elevenlabs: false, speaking: false,
+    show: (t: string, ms: number) => {}, setPhase: (p: string) => {},
+  });
+  R.current.voiceOn = voiceOn;
+  R.current.show = (t, ms) => { setCaption(t); setCaptionOn(true); setTimeout(() => setCaptionOn(false), ms); };
+  R.current.setPhase = setPhase;
+  R.current.setWeather = setWeather;
+
+  // ----- voice -----
+  async function say(text: string, volume: number, rate = 0.8): Promise<void> {
+    const r = R.current;
+    if (!r.voiceOn || volume <= 0) return;
+    r.speaking = true;
+    try {
+      if (r.elevenlabs) {
+        const res = await fetch("/api/voice", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text }) });
+        if (res.ok) {
+          const url = URL.createObjectURL(await res.blob());
+          await new Promise<void>((done) => { const a = new Audio(url); a.volume = Math.min(1, volume); a.onended = () => { URL.revokeObjectURL(url); done(); }; a.onerror = () => done(); void a.play().catch(() => done()); });
+          return;
+        }
+      }
+      if (!("speechSynthesis" in window)) return;
+      await new Promise<void>((done) => {
+        const u = new SpeechSynthesisUtterance(text); u.volume = Math.min(1, volume); u.rate = rate; u.pitch = 0.9;
+        const vs = speechSynthesis.getVoices();
+        u.voice = ["Samantha", "Karen", "Moira", "Google UK English Female", "Aria"].map((n) => vs.find((v) => v.name.includes(n))).find(Boolean) || vs.find((v) => v.lang.startsWith("en")) || null;
+        u.onend = () => done(); u.onerror = () => done(); speechSynthesis.speak(u);
+        setTimeout(done, 2000 + text.length * 120);
+      });
+    } finally { r.speaking = false; }
+  }
+
+  // ----- whispers: paced by the page, beneath the tone -----
+  function startWhispering() {
+    const r = R.current; clearTimeout(r.whisperTimer);
+    const tick = async () => {
+      if (!r.running || !r.whispers.length) return;
+      if (!r.speaking) {
+        const phrase = r.whispers[r.whisperIdx++ % r.whispers.length];
+        r.show(phrase, 5000);
+        await say(phrase, 0.12, 0.72);
+      }
+      r.whisperTimer = setTimeout(tick, 13000 + Math.random() * 9000);
+    };
+    r.whisperTimer = setTimeout(tick, 7000);
+  }
+
+  // ----- Oriel plans a passage -----
+  async function plan(kind: Kind) {
+    const r = R.current; if (r.planning || !r.running) return;
+    r.planning = true; r.lastKind = kind;
+    try {
+      const t = r.audio.targets;
+      const res = await fetch("/api/passage", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
+        kind, minutes: Math.round((Date.now() - r.startedAt) / 60000), passage: r.passage, ease: r.faceState.ease, trend: r.faceState.trend, eyesClosed: r.faceState.eyesClosed, closedSeconds: Math.round(r.faceState.closedSeconds), blinkRate: r.faceState.blinkRate, stillness: r.faceState.stillness, calibrated: r.faceState.calibrated, present: r.faceState.present,
+        carrierHz: t.carrier, beatHz: r.passageBeat, alreadyWhispered: r.spoken.slice(-30) }) });
+      if (!res.ok) throw new Error(String(res.status));
+      const p = (await res.json()) as PassageT;
+      if (!r.running) return;
+      r.passage++; r.passageAt = Date.now(); r.passageBeat = Math.min(7, Math.max(2, p.beatHz));
+      r.hue = ((p.hue % 360) + 360) % 360;
+      r.audio.tune(Math.min(963, Math.max(174, p.carrierHz)), r.passageBeat, 45);
+      r.whispers = p.whispers; r.whisperIdx = 0; r.spoken.push(...p.whispers);
+      r.setPhase(p.phase.toLowerCase());
+      r.show(p.speak, 14000);
+      await say(p.speak, 1, 0.8);
+      startWhispering();
+    } catch (e) {
+      console.warn("Oriel could not plan:", e);
+      if (r.passage === 0) { // a scripted opening so the room still opens
+        r.passage++; r.passageAt = Date.now(); r.whispers = ["Feel the weight of your hands.", "Your breath is already here.", "Whatever you feel is welcome.", "Let your chest be soft.", "You are loved exactly as you are.", "Notice the warmth in your belly.", "There is room for all of it.", "You are home in this body."];
+        r.spoken.push(...r.whispers); r.setPhase("the opening");
+        const s = "I am Oriel. Five hundred twenty-eight hertz in the left ear, lifted by four and a half in the right. Where they meet, the door opens. Let your weight settle. You are expected here.";
+        r.show(s, 14000); await say(s, 1); startWhispering();
+      }
+    } finally { r.planning = false; }
+  }
+
+  // ----- begin / end -----
+  async function begin() {
+    const r = R.current; if (r.running) return;
+    r.running = true; r.startedAt = Date.now(); setBegun(true);
+    r.audio.start(0.6);
+    if ("speechSynthesis" in window) speechSynthesis.getVoices();
+    fetch("/api/voice").then((x) => x.json()).then((j) => { r.elevenlabs = !!j.available; }).catch(() => {});
+    try { await (navigator as Navigator & { wakeLock?: { request(t: string): Promise<unknown> } }).wakeLock?.request("screen"); } catch {}
+    void plan("open");
+    // camera and face model load alongside the opening
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: 480, height: 360 }, audio: false });
+      const v = videoRef.current!; v.srcObject = stream; await v.play();
+      const face = new FaceReader(); await face.load(); r.face = face; setFaceLive(true);
+    } catch (e) { console.warn("no camera; Oriel listens without a face", e); }
+  }
+  function end() {
+    const r = R.current; r.running = false; clearTimeout(r.whisperTimer);
+    if ("speechSynthesis" in window) speechSynthesis.cancel();
+    void say("The door stays open for you.", 1);
+    r.audio.stop(); const v = videoRef.current; (v?.srcObject as MediaStream | null)?.getTracks().forEach((t) => t.stop()); if (v) v.srcObject = null;
+    setBegun(false); setFaceLive(false); setPhase(""); setWeather(""); r.whispers = []; r.passage = 0;
+  }
+
+  // ----- the loop: draw the orb, read the face, feed the beat -----
+  useEffect(() => {
+    const canvas = canvasRef.current!, ctx = canvas.getContext("2d")!;
+    const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let raf = 0, frame = 0, lastRead = 0, lastReadout = 0;
+    const draw = (now: number) => {
+      const r = R.current; const t = now / 1000; frame++;
+      // size
+      const rect = canvas.getBoundingClientRect(), dpr = Math.min(2, devicePixelRatio || 1);
+      if (canvas.width !== Math.round(rect.width * dpr)) { canvas.width = Math.round(rect.width * dpr); canvas.height = Math.round(rect.height * dpr); }
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const W = rect.width, H = rect.height, cx = W / 2, cy = H / 2, Rr = Math.min(W, H) / 2;
+      // face, ~15 fps
+      if (r.face && videoRef.current && now - lastRead > 66) { lastRead = now; r.faceState = r.face.read(videoRef.current, now); }
+      const f = r.faceState, ease = f.present ? f.ease : 0.5;
+      // the loop. tense lifts the beat a little and closes the music down, warm and held; soft sinks the beat toward delta and opens the music.
+      if (r.running && f.present && now - r.lastTune > 4000) {
+        r.lastTune = now;
+        const rel = f.calibrated ? ease : 0.5;                       // before calibration, hold the passage as written
+        const closedBonus = Math.min(1.5, f.closedSeconds / 20);      // eyes closed a while: ease the beat down further
+        // tension lifts the beat only a little (never out of the body); softening sinks it toward deep theta
+        const shift = rel < 0.5 ? (0.5 - rel) * 2 : (0.5 - rel) * 2.5;
+        const beat = Math.min(7, Math.max(2, r.passageBeat + shift - closedBonus));
+        r.audio.tune(r.audio.targets.carrier, beat, 12);
+        r.audio.setBloom(f.calibrated ? (rel - 0.5) * 2 + Math.max(0, f.trend) * 0.5 : 0);
+        // the weather word
+        r.setWeather(!f.calibrated ? "reading you" : f.eyesClosed ? "settling" : f.trend > 0.12 ? "softening" : f.trend < -0.12 ? "tightening" : rel > 0.65 ? "open" : rel < 0.35 ? "holding on" : "steady");
+        // when the weather has held long enough, Oriel speaks to it
+        const age = Date.now() - r.passageAt;
+        const softening = f.calibrated && (f.trend > 0.12 || rel > 0.72 || f.closedSeconds > 30);
+        const tightening = f.calibrated && (f.trend < -0.12 || rel < 0.28);
+        if (softening) { r.tenseSince = 0; if (!r.deepSince) r.deepSince = now; } else r.deepSince = 0;
+        if (tightening) { r.deepSince = 0; if (!r.tenseSince) r.tenseSince = now; } else r.tenseSince = 0;
+        if (r.passage > 0 && !r.planning) {
+          if ((r.deepSince && now - r.deepSince > 15000 && age > 120000) || age > 330000) { r.deepSince = 0; void plan("deepen"); }
+          else if (r.tenseSince && now - r.tenseSince > 15000 && age > 90000 && r.lastKind !== "steady") { r.tenseSince = 0; void plan("steady"); }
+        }
+      } else if (r.running && !f.present && now - r.lastTune > 4000) {
+        r.lastTune = now; r.audio.setBloom(0); r.setWeather("");
+        if (Date.now() - r.passageAt > 330000 && r.passage > 0 && !r.planning) void plan("deepen");
+      }
+      r.audio.tick();
+      // orb
+      ctx.clearRect(0, 0, W, H);
+      const breathe = reduced ? 0 : Math.sin(t * 2 * Math.PI * 0.09);
+      const lam = Math.max(7, 2600 / r.audio.carrier), sep = Rr * 0.22, ph = reduced ? 0 : (t * r.audio.beat * 0.5) % 1;
+      ctx.globalCompositeOperation = "lighter"; ctx.lineWidth = 1;
+      for (const [sx, p, hs] of [[cx - sep, 0, 0], [cx + sep, ph, 25]] as const) {
+        const n = Math.ceil((Rr + sep) / lam);
+        for (let i = 0; i < n; i++) { const rad = (i + p) * lam; if (rad <= 0) continue; const a = (r.running ? 0.05 + ease * 0.05 : 0.03) * (1 - rad / (Rr + sep)); ctx.strokeStyle = `hsla(${r.hue + hs},70%,70%,${a})`; ctx.beginPath(); ctx.arc(sx, cy, rad, 0, Math.PI * 2); ctx.stroke(); }
+      }
+      ctx.globalCompositeOperation = "source-over";
+      const orbR = Rr * (0.14 + 0.02 * breathe + (r.running ? 0.06 + ease * 0.08 : 0));
+      const og = ctx.createRadialGradient(cx, cy, 0, cx, cy, orbR * 2.6);
+      og.addColorStop(0, `hsla(${r.hue + 20},80%,${78 + ease * 14}%,${r.running ? 0.95 : 0.55})`);
+      og.addColorStop(0.3, `hsla(${r.hue},75%,60%,${r.running ? 0.35 + ease * 0.3 : 0.25})`);
+      og.addColorStop(1, `hsla(${r.hue},70%,40%,0)`);
+      ctx.fillStyle = og; ctx.beginPath(); ctx.arc(cx, cy, orbR * 2.6, 0, Math.PI * 2); ctx.fill();
+      if (now - lastReadout > 250) { lastReadout = now; setReadout(`${r.audio.carrier.toFixed(2)} · ${(r.audio.carrier + r.audio.beat).toFixed(2)} · ${r.audio.beat.toFixed(2)}`); }
+      raf = requestAnimationFrame(draw);
+    };
+    raf = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  const ease = R.current.faceState.present ? R.current.faceState.ease : 0.5;
+  return (
+    <main className="screen">
+      <div className="freq">{readout} hz</div>
+      <div className="stage">
+        <canvas className="orb" ref={canvasRef} aria-hidden="true" />
+        <button className={`begin ${begun ? "gone" : ""}`} onClick={begin}>Begin</button>
+        <div className={`caption ${captionOn ? "show" : ""}`} aria-live="polite">{caption}</div>
+      </div>
+      <div className={`you ${faceLive ? "live" : ""}`} style={{ boxShadow: `0 0 ${12 + ease * 36}px hsla(${R.current.hue},70%,65%,${0.2 + ease * 0.5}), 0 0 0 1px rgba(228,163,168,.25)` }}>
+        <video ref={videoRef} muted playsInline />
+      </div>
+      {begun ? (
+        <div className="foot">
+          <span>{phase}{weather ? ` · ${weather}` : ""}</span>
+          <button onClick={() => setVoiceOn((v) => !v)}>{voiceOn ? "voice on" : "voice off"}</button>
+          <button onClick={end}>end</button>
+        </div>
+      ) : (
+        <div className="hint">headphones · your face stays on this device</div>
+      )}
+    </main>
+  );
+}
