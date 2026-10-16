@@ -57,7 +57,8 @@ export default function Page() {
       r.passage++; r.passageAt = Date.now(); r.passageBeat = Math.min(7, Math.max(2, p.beatHz));
       r.hue = ((p.hue % 360) + 360) % 360;
       r.audio.tune(Math.min(963, Math.max(174, p.carrierHz)), r.passageBeat, 45);
-      r.whispers = p.whispers; r.whisperIdx = 0; r.spoken.push(...p.whispers);
+      const short = p.whispers.filter((w) => w.trim().split(/\s+/).length <= 5);   // the type is huge: keep only what fits in a breath
+      r.whispers = short.length >= 4 ? short : p.whispers; r.whisperIdx = 0; r.spoken.push(...p.whispers);
       r.setPhase(p.phase.toLowerCase());
       r.show(p.speak, 11000);
       setTimeout(startWhispering, 8000);
