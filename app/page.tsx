@@ -21,6 +21,7 @@ export default function Page() {
   const [captionOn, setCaptionOn] = useState(false);
   const [faceLive, setFaceLive] = useState(false);
   const [youCorner, setYouCorner] = useState(false);
+  const [qr, setQr] = useState(false);       // the big QR code, for a room full of phones
   const [flip, setFlip] = useState(false);   // tap the circle to flip it; cameras differ in whether they mirror
   useEffect(() => { try { setFlip(localStorage.getItem("flip") === "1"); } catch {} }, []);
   const toggleFlip = () => setFlip((f) => { try { localStorage.setItem("flip", f ? "0" : "1"); } catch {} return !f; });
@@ -279,6 +280,18 @@ export default function Page() {
         </div>
       ) : (
         <div className="hint">headphones preferred</div>
+      )}
+      <button className="qrbtn" onClick={() => setQr(true)}>qr</button>
+      {qr && (
+        <div className="qrover" onClick={() => setQr(false)}>
+          <div className="qrcard">
+            <div className="qrline">528 Hz is the frequency of love.</div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <span className="qrbox"><img src="/qr.svg" alt="QR code for energetic-regulator.vercel.app" /></span>
+            <div className="qrurl">energetic-regulator.vercel.app</div>
+            <div className="qrhint">tap anywhere to close</div>
+          </div>
+        </div>
       )}
     </main>
   );
