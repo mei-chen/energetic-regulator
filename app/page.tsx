@@ -187,7 +187,7 @@ export default function Page() {
       const you = youRef.current;
       if (you) {
         you.style.opacity = r.faceLive ? String(0.28 + 0.3 * inhale + ease * 0.15) : "0";
-        you.style.transform = `translateX(-50%) scale(${0.9 + 0.14 * inhale})`;
+        you.style.transform = `scale(${0.9 + 0.14 * inhale})`;
         you.style.filter = `drop-shadow(0 0 ${8 + inhale * 22}px hsla(${r.hue},70%,65%,${0.25 + inhale * 0.3}))`;
       }
       if (now - lastReadout > 250) { lastReadout = now; setReadout(`${r.audio.carrier.toFixed(2)} · ${(r.audio.carrier + r.audio.beat).toFixed(2)} · ${r.audio.beat.toFixed(2)}`); }
@@ -203,9 +203,9 @@ export default function Page() {
       <div className="stage">
         <canvas className="orb" ref={canvasRef} aria-hidden="true" />
         <button className={`begin ${begun ? "gone" : ""}`} onClick={begin}>Begin</button>
-        <div className={`you ${faceLive ? "live" : ""}`} ref={youRef}>
-          <video ref={videoRef} muted playsInline />
-        </div>
+      </div>
+      <div className={`you ${faceLive ? "live" : ""}`} ref={youRef}>
+        <video ref={videoRef} muted playsInline />
       </div>
       <div className={`caption ${captionOn ? "show" : ""}`} ref={captionRef} aria-live="polite"><span>{caption}</span></div>
       {begun ? (
