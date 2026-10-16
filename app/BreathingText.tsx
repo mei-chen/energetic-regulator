@@ -9,7 +9,7 @@ const Y_AMP = 2, Y_AMP2 = 0.8;              // px at 22px type; scaled with the 
 const SKEW_AMP = 2, SKEW_AMP2 = 0.7;        // degrees
 const PHI_STEP = 0.2;
 
-export function BreathingText({ text, intensity = 0.35, speed = 0.3, depth = 0.4 }: { text: string; intensity?: number; speed?: number; depth?: number }) {
+export function BreathingText({ text, intensity = 0.35, speed = 0.12, depth = 0.4 }: { text: string; intensity?: number; speed?: number; depth?: number }) {
   const ref = useRef<HTMLSpanElement>(null);
   useEffect(() => {
     const host = ref.current; if (!host) return;
