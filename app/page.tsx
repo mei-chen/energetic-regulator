@@ -12,6 +12,8 @@ export default function Page() {
   const youRef = useRef<HTMLDivElement>(null);
   const captionRef = useRef<HTMLDivElement>(null);
   const markRef = useRef<HTMLDivElement>(null);
+  const sideRefs = useRef<(HTMLElement | null)[]>([null, null, null, null]);   // left mark, left value, right mark, right value
+  const sidePos = (hz: number) => `${(1 - (Math.log(hz) - Math.log(150)) / (Math.log(700) - Math.log(150))) * 100}%`;
   const [begun, setBegun] = useState(false);
   const [caption, setCaption] = useState("");
   const [captionOn, setCaptionOn] = useState(false);
@@ -20,7 +22,7 @@ export default function Page() {
   const [flip, setFlip] = useState(false);   // tap the circle to flip it; cameras differ in whether they mirror
   useEffect(() => { try { setFlip(localStorage.getItem("flip") === "1"); } catch {} }, []);
   const toggleFlip = () => setFlip((f) => { try { localStorage.setItem("flip", f ? "0" : "1"); } catch {} return !f; });
-  const [readout, setReadout] = useState("528.00 · 532.50 · 4.50");
+  const [readout, setReadout] = useState("4.50");
   const [phase, setPhase] = useState("");
   const [weather, setWeather] = useState("");
 
@@ -207,8 +209,11 @@ export default function Page() {
         you.style.filter = `drop-shadow(0 0 ${8 + inhale * 22}px hsla(${r.hue},70%,65%,${0.25 + inhale * 0.3}))`;
       }
       if (now - lastReadout > 250) {
-        lastReadout = now; setReadout(`${r.audio.carrier.toFixed(2)} · ${(r.audio.carrier + r.audio.beat).toFixed(2)} · ${r.audio.beat.toFixed(2)}`);
-        const m = markRef.current; if (m) { m.style.left = `${Math.max(0, Math.min(100, (r.audio.beat - 2) / 5 * 100))}%`; m.style.boxShadow = `0 0 10px 2px hsla(${r.hue},70%,70%,.55)`; }
+        lastReadout = now; setReadout(r.audio.beat.toFixed(2));
+        const glowCss = `0 0 10px 2px hsla(${r.hue},70%,70%,.55)`;
+        const m = markRef.current; if (m) { m.style.left = `${Math.max(0, Math.min(100, (r.audio.beat - 2) / 5 * 100))}%`; m.style.boxShadow = glowCss; }
+        const [lm, lv, rm, rv] = sideRefs.current, L = r.audio.carrier, Rh = r.audio.carrier + r.audio.beat;
+        if (lm && lv && rm && rv) { lm.style.top = lv.style.top = sidePos(L); rm.style.top = rv.style.top = sidePos(Rh); lv.textContent = L.toFixed(2); rv.textContent = Rh.toFixed(2); lm.style.boxShadow = rm.style.boxShadow = glowCss; }
       }
       raf = requestAnimationFrame(safe);
     };
@@ -220,6 +225,14 @@ export default function Page() {
   return (
     <main className="screen">
       <div className="freq">{readout} hz</div>
+      {[0, 2].map((i) => (
+        <div className={`side ${i ? "r" : "l"}`} key={i} aria-hidden="true">
+          {[174, 396, 417, 432, 528, 639].map((hz) => <span className="tick" key={hz} style={{ top: sidePos(hz) }} />)}
+          <div className="mark" ref={(el) => { sideRefs.current[i] = el; }} style={{ top: sidePos(i ? 532.5 : 528) }} />
+          <span className="val" ref={(el) => { sideRefs.current[i + 1] = el; }} style={{ top: sidePos(i ? 532.5 : 528) }}>{i ? "532.50" : "528.00"}</span>
+          <span className="lab">{i ? "right ear" : "left ear"}</span>
+        </div>
+      ))}
       <div className="scale" aria-hidden="true"><span className="tick" /><div className="mark" ref={markRef} style={{ left: "50%" }} /><span className="l">delta</span><span className="r">theta</span></div>
       <div className="stage">
         <canvas className="orb" ref={canvasRef} aria-hidden="true" />
