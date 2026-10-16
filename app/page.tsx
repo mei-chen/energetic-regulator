@@ -242,7 +242,7 @@ export default function Page() {
         <video ref={videoRef} muted playsInline />
       </div>
       <div className="band">
-        <p className={`intro ${begun ? "gone" : ""}`}>528 Hz is the frequency of love. The camera reads your face, and the sound and the pattern follow you.</p>
+        <p className={`intro ${begun ? "gone" : ""}`}>528 Hz is the frequency of love. The camera calibrates to your face and modulates the sound.</p>
         <div className={`caption ${captionOn ? "show" : ""}`} ref={captionRef} aria-live="polite"><span>{caption}</span></div>
       </div>
       {begun ? (
