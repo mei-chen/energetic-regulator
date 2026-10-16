@@ -60,6 +60,9 @@ export default function Page() {
       const short = p.whispers.filter((w) => w.trim().split(/\s+/).length <= 5);   // the type is huge: keep only what fits in a breath
       r.whispers = short.length >= 4 ? short : p.whispers; r.whisperIdx = 0; r.spoken.push(...p.whispers);
       r.setPhase(p.phase.toLowerCase());
+      const hold = r.passage === 1 ? 10500 - (Date.now() - r.startedAt) : 0;     // let the first instruction be read
+      if (hold > 0) await new Promise((res) => setTimeout(res, hold));
+      if (!r.running) return;
       r.show(p.speak, 11000);
       setTimeout(startWhispering, 8000);
     } catch (e) {
@@ -77,6 +80,7 @@ export default function Page() {
     const r = R.current; if (r.running) return;
     r.running = true; r.startedAt = Date.now(); setBegun(true);
     r.audio.start(0.6);
+    r.show("Sit back. Breathe slowly. Let the camera see your face.", 9500);
     try { await (navigator as Navigator & { wakeLock?: { request(t: string): Promise<unknown> } }).wakeLock?.request("screen"); } catch {}
     void plan("open");
     // camera and face model load alongside the opening
@@ -176,7 +180,9 @@ export default function Page() {
       const vg = ctx.createRadialGradient(cx, cy, Rr * 0.5, cx, cy, Rr * 0.98); vg.addColorStop(0, "rgba(0,0,0,1)"); vg.addColorStop(1, "rgba(0,0,0,0)");
       ctx.globalCompositeOperation = "destination-in"; ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
       ctx.globalCompositeOperation = "source-over";
-      const orbR = Rr * (0.12 + 0.08 * breathe + (r.running ? 0.05 + ease * 0.08 : 0));
+      // the dot: swells with the breath and throbs gently on top, about once every three seconds
+      const throb = reduced ? 0 : Math.sin(t * 2 * Math.PI * 0.33) * 0.02;
+      const orbR = Rr * (0.13 + 0.12 * breathe + throb + (r.running ? 0.05 + ease * 0.08 : 0));
       const og = ctx.createRadialGradient(cx, cy, 0, cx, cy, orbR * 2.6);
       og.addColorStop(0, `hsla(${r.hue + 20 + drift},85%,${76 + ease * 10 + inhale * 10}%,${r.running ? 0.95 : 0.6})`);
       og.addColorStop(0.3, `hsla(${r.hue + drift * 0.5},80%,60%,${(r.running ? 0.3 + ease * 0.3 : 0.25) * (0.6 + 0.4 * inhale)})`);
@@ -207,7 +213,10 @@ export default function Page() {
       <div className={`you ${faceLive ? "live" : ""}`} ref={youRef}>
         <video ref={videoRef} muted playsInline />
       </div>
-      <div className={`caption ${captionOn ? "show" : ""}`} ref={captionRef} aria-live="polite"><span>{caption}</span></div>
+      <div className="band">
+        <p className={`intro ${begun ? "gone" : ""}`}>A binaural beat that reads your face. Headphones on, press Begin. The camera watches how you breathe and soften, and the sound and the pattern follow you.</p>
+        <div className={`caption ${captionOn ? "show" : ""}`} ref={captionRef} aria-live="polite"><span>{caption}</span></div>
+      </div>
       {begun ? (
         <div className="foot">
           <span>{phase}{weather ? ` · ${weather}` : ""}</span>
