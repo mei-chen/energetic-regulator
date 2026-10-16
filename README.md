@@ -16,7 +16,7 @@ It's built to get you out of your head and into your body, and to let you meet w
 
 The beat lives in low theta (about 3 to 5.5 Hz), opening near 4.5 and sinking toward 3 as you settle.
 
-- Calm ambient music plays underneath: two five-minute tracks in `public/music`, generated once with ElevenLabs Music, alternating with a ten-second crossfade. A slow swell breathes through it about three and a half times a minute.
+- Calm ambient music plays underneath: five five-minute tracks in `public/music` in different palettes, generated once with ElevenLabs Music, played in a shuffled order with a ten-second crossfade. A slow swell breathes through it about three and a half times a minute.
 - Inside the music, each ear gets a quiet pure sine a few hertz apart. Your brain hears the difference as a slow beat.
 - Your camera reads your face on this device only, with MediaPipe blendshapes. Nothing is uploaded.
 - The first twenty seconds take a baseline of your resting face. Everything after is measured against you, not against a generic face.

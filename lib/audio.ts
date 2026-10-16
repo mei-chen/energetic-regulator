@@ -1,6 +1,6 @@
 // The sound of the room: calm music underneath, a quiet binaural beat inside it, a slow breath over all of it.
-// Two long ambient tracks alternate with a crossfade so the room never falls silent.
-const TRACKS = ["/music/dawn.mp3", "/music/dusk.mp3"];
+// Five long ambient tracks in different palettes play in a shuffled order with a crossfade, so the room never falls silent or repeats itself soon.
+const TRACKS = ["/music/dawn.mp3", "/music/dusk.mp3", "/music/rain.mp3", "/music/tide.mp3", "/music/grove.mp3"];
 const XFADE = 10;       // seconds of overlap between tracks
 const MUSIC = 0.55;     // music level under the master
 const BEAT = 0.055;     // the binaural tones, felt more than heard
@@ -13,7 +13,8 @@ export class Binaural {
   private oscs: { osc: OscillatorNode; f: (c: number, b: number) => number }[] = [];
   private buffers: (AudioBuffer | null)[] = [];
   private playing: { src: AudioBufferSourceNode; g: GainNode; endsAt: number } | null = null;
-  private trackIdx = 0;
+  private order: number[] = [];   // a shuffled walk through the tracks
+  private pos = 0;
   private nextQueued = false;
   carrier = 528;
   beat = 4.5;
@@ -44,17 +45,25 @@ export class Binaural {
     void this.loadAndPlay();
   }
 
+  private async load(i: number) {
+    if (this.buffers[i]) return this.buffers[i]!;
+    const res = await fetch(TRACKS[i]); const buf = await this.ac!.decodeAudioData(await res.arrayBuffer());
+    this.buffers[i] = buf; return buf;
+  }
+
+  private shuffle() {
+    const idx = TRACKS.map((_, i) => i);
+    for (let i = idx.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [idx[i], idx[j]] = [idx[j], idx[i]]; }
+    if (this.order.length && idx[0] === this.order[this.order.length - 1]) idx.push(idx.shift()!); // never the same track twice running
+    this.order = idx; this.pos = 0;
+  }
+
   private async loadAndPlay() {
-    const ac = this.ac!;
-    const load = async (i: number) => {
-      if (this.buffers[i]) return this.buffers[i];
-      const res = await fetch(TRACKS[i]); const buf = await ac.decodeAudioData(await res.arrayBuffer());
-      this.buffers[i] = buf; return buf;
-    };
-    const first = await load(0);
+    this.shuffle();
+    const first = await this.load(this.order[0]);
     if (!this.ac) return;
-    this.play(first, ac.currentTime + 0.1, 6);
-    void load(1);
+    this.play(first, this.ac.currentTime + 0.1, 6);
+    void this.load(this.order[1]);
   }
 
   /** Start a track at `at`, fading in over `fade` seconds; the previous track fades out across the same window. */
@@ -87,11 +96,12 @@ export class Binaural {
     if (!ac || !p || this.nextQueued) return;
     const at = p.endsAt - XFADE;
     if (ac.currentTime < at - 2) return;
-    const next = (this.trackIdx + 1) % TRACKS.length, buf = this.buffers[next] ?? this.buffers[this.trackIdx];
-    if (!buf) return;
-    this.trackIdx = this.buffers[next] ? next : this.trackIdx;
-    this.nextQueued = true;
+    if (this.pos + 1 >= this.order.length) { const last = this.order[this.pos]; this.shuffle(); this.order.unshift(last); }
+    const next = this.order[this.pos + 1], buf = this.buffers[next];
+    if (!buf) { void this.load(next); return; }            // not decoded yet: try again next frame
+    this.pos++; this.nextQueued = true;
     this.play(buf, Math.max(at, ac.currentTime + 0.05), XFADE);
+    void this.load(this.order[this.pos + 1] ?? this.order[0]);
   }
 
   /** -1..1, 0 at the listener's baseline. The music opens and brightens as they soften; it closes, warm and held, as they tighten. */
