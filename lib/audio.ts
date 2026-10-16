@@ -4,6 +4,7 @@ const TRACKS = ["/music/dawn.mp3", "/music/dusk.mp3", "/music/rain.mp3", "/music
 const XFADE = 10;       // seconds of overlap between tracks
 const MUSIC = 0.55;     // music level under the master
 const BEAT = 0.055;     // the binaural tones, felt more than heard
+const BREATH_HZ = 0.058; // the swell on the music, about three and a half breaths a minute
 
 export class Binaural {
   private ac: AudioContext | null = null;
@@ -16,6 +17,7 @@ export class Binaural {
   private order: number[] = [];   // a shuffled walk through the tracks
   private pos = 0;
   private nextQueued = false;
+  private breathStart = 0;
   carrier = 528;
   beat = 4.5;
   private targetCarrier = 528;
@@ -39,8 +41,9 @@ export class Binaural {
     this.music = ac.createGain(); this.music.gain.value = MUSIC;
     this.tone.connect(this.music); this.music.connect(this.master);
     // the breath: a slow, clearly felt swell on the music, about three and a half breaths a minute
-    const breath = ac.createOscillator(); breath.frequency.value = 0.058;
-    const bg = ac.createGain(); bg.gain.value = MUSIC * 0.3; breath.connect(bg); bg.connect(this.music.gain); breath.start();
+    const breath = ac.createOscillator(); breath.frequency.value = BREATH_HZ;
+    const bg = ac.createGain(); bg.gain.value = MUSIC * 0.3; breath.connect(bg); bg.connect(this.music.gain);
+    this.breathStart = ac.currentTime; breath.start(this.breathStart);
     this.master.gain.setTargetAtTime(volume, ac.currentTime, 2.5);
     void this.loadAndPlay();
   }
@@ -112,5 +115,7 @@ export class Binaural {
   }
 
   stop() { if (this.ac) this.master.gain.setTargetAtTime(0, this.ac.currentTime, 1.5); }
+  /** -1..1, the same breath the music is swelling with, so the orb can breathe in time with it. */
+  get breath() { return this.ac ? Math.sin((this.ac.currentTime - this.breathStart) * 2 * Math.PI * BREATH_HZ) : 0; }
   get targets() { return { carrier: this.targetCarrier, beat: this.targetBeat }; }
 }

@@ -133,20 +133,31 @@ export default function Page() {
         if (Date.now() - r.passageAt > 330000 && r.passage > 0 && !r.planning) void plan("deepen");
       }
       r.audio.tick();
-      // orb
+      // orb: two ring sources, one per ear. On the in-breath they draw together and the rings cohere into one bright
+      // concentric pattern; on the out-breath they part and the rings fall into drifting moire fringes. The breath is the
+      // same one the music swells with.
       ctx.clearRect(0, 0, W, H);
-      const breathe = reduced ? 0 : Math.sin(t * 2 * Math.PI * 0.09);
-      const lam = Math.max(7, 2600 / r.audio.carrier), sep = Rr * 0.22, ph = reduced ? 0 : (t * r.audio.beat * 0.5) % 1;
-      ctx.globalCompositeOperation = "lighter"; ctx.lineWidth = 1;
-      for (const [sx, p, hs] of [[cx - sep, 0, 0], [cx + sep, ph, 25]] as const) {
-        const n = Math.ceil((Rr + sep) / lam);
-        for (let i = 0; i < n; i++) { const rad = (i + p) * lam; if (rad <= 0) continue; const a = (r.running ? 0.05 + ease * 0.05 : 0.03) * (1 - rad / (Rr + sep)); ctx.strokeStyle = `hsla(${r.hue + hs},70%,70%,${a})`; ctx.beginPath(); ctx.arc(sx, cy, rad, 0, Math.PI * 2); ctx.stroke(); }
+      const breathe = reduced ? 0 : r.running ? r.audio.breath : Math.sin(t * 2 * Math.PI * 0.058);
+      const inhale = (breathe + 1) / 2;                                   // 0 exhaled .. 1 inhaled
+      const lam = Math.max(7, 2600 / r.audio.carrier);
+      const sep = Rr * (0.03 + 0.3 * (1 - inhale));                       // sources meet on the in-breath
+      const ph = reduced ? 0 : (t * r.audio.beat * 0.35) % 1;             // the right source drifts at the beat
+      const lamR = lam * (1 + 0.012 * r.audio.beat);                      // slightly wider rings on the right: spacing beats in and out of step
+      const glow = r.running ? 0.045 + ease * 0.05 : 0.03;
+      ctx.globalCompositeOperation = "lighter"; ctx.lineWidth = 1 + inhale * 0.8;
+      for (const [sx, p, hs, L] of [[cx - sep, 0, 0, lam], [cx + sep, ph, 25, lamR]] as const) {
+        const n = Math.ceil((Rr + sep) / L);
+        for (let i = 0; i < n; i++) {
+          const rad = (i + p) * L; if (rad <= 0) continue;
+          const a = glow * (0.55 + 0.45 * inhale) * (1 - rad / (Rr + sep));
+          ctx.strokeStyle = `hsla(${r.hue + hs},72%,72%,${a})`; ctx.beginPath(); ctx.arc(sx, cy, rad, 0, Math.PI * 2); ctx.stroke();
+        }
       }
       ctx.globalCompositeOperation = "source-over";
-      const orbR = Rr * (0.14 + 0.02 * breathe + (r.running ? 0.06 + ease * 0.08 : 0));
+      const orbR = Rr * (0.12 + 0.07 * breathe + (r.running ? 0.05 + ease * 0.08 : 0));
       const og = ctx.createRadialGradient(cx, cy, 0, cx, cy, orbR * 2.6);
-      og.addColorStop(0, `hsla(${r.hue + 20},80%,${78 + ease * 14}%,${r.running ? 0.95 : 0.55})`);
-      og.addColorStop(0.3, `hsla(${r.hue},75%,60%,${r.running ? 0.35 + ease * 0.3 : 0.25})`);
+      og.addColorStop(0, `hsla(${r.hue + 20},80%,${74 + ease * 12 + inhale * 8}%,${r.running ? 0.95 : 0.55})`);
+      og.addColorStop(0.3, `hsla(${r.hue},75%,60%,${(r.running ? 0.3 + ease * 0.3 : 0.22) * (0.7 + 0.3 * inhale)})`);
       og.addColorStop(1, `hsla(${r.hue},70%,40%,0)`);
       ctx.fillStyle = og; ctx.beginPath(); ctx.arc(cx, cy, orbR * 2.6, 0, Math.PI * 2); ctx.fill();
       if (now - lastReadout > 250) { lastReadout = now; setReadout(`${r.audio.carrier.toFixed(2)} · ${(r.audio.carrier + r.audio.beat).toFixed(2)} · ${r.audio.beat.toFixed(2)}`); }
