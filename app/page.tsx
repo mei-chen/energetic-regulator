@@ -161,18 +161,19 @@ export default function Page() {
         if (fb.width !== canvas.width || fb.height !== canvas.height) { fb.width = canvas.width; fb.height = canvas.height; }
         fbx.clearRect(0, 0, fb.width, fb.height); fbx.drawImage(canvas, 0, 0);
         ctx.clearRect(0, 0, W, H);
-        ctx.save(); ctx.globalAlpha = 0.84; ctx.translate(cx, cy); ctx.rotate(0.006 + 0.02 * breathe); const z = 1 + 0.03 * breathe; ctx.scale(z, z);
+        ctx.save(); ctx.globalAlpha = 0.84; ctx.translate(cx, cy); ctx.rotate(0.01 + 0.035 * breathe); const z = 1 + 0.05 * breathe; ctx.scale(z, z);
         ctx.drawImage(fb, -cx, -cy, W, H); ctx.restore();
       }
       const drift = reduced ? 0 : t * 9;                                 // the slow walk through the spectrum
-      const lam = Math.max(6, 2600 / r.audio.carrier) * (0.7 + 0.6 * inhale); // the lattice dilates on the in-breath
-      const sep = Rr * (0.02 + 0.42 * (1 - inhale));                      // sources meet on the in-breath
-      orbit += reduced ? 0 : dt * (0.08 + 0.5 * inhale);                  // and orbit the centre, quickening on the in-breath
+      const lam = Math.max(5, 2600 / r.audio.carrier) * (0.55 + 0.9 * inhale); // the lattice dilates hard on the in-breath
+      const sep = Rr * (0.02 + 0.5 * (1 - inhale));                       // sources meet on the in-breath
+      orbit += reduced ? 0 : dt * (0.15 + 0.9 * inhale);                  // and orbit the centre, quickening on the in-breath
       const ang = orbit;
       const ph = reduced ? 0 : (t * r.audio.beat * 0.35) % 1;             // the right source drifts at the beat
       const glow = r.running ? 0.085 + ease * 0.05 : 0.075;
-      ctx.globalCompositeOperation = "lighter"; ctx.lineWidth = 1 + inhale * 1.4;
-      for (const [sgn, p, hs, L] of [[-1, 0, 0, lam], [1, ph, 150, lam * (1 + 0.012 * r.audio.beat)]] as const) {
+      ctx.globalCompositeOperation = "lighter"; ctx.lineWidth = 1.2 + inhale * 1.8;
+      // three sources: one per ear orbiting the centre, and a third at the centre turning the other way, so the fringes fold into petals
+      for (const [sgn, p, hs, L] of [[-1, 0, 0, lam], [1, ph, 150, lam * (1 + 0.012 * r.audio.beat)], [0, 1 - ph * 0.5, 270, lam * 0.96]] as const) {
         const sx = cx + sgn * sep * Math.cos(ang), sy = cy + sgn * sep * Math.sin(ang);
         const n = Math.ceil((Rr + sep) / L);
         for (let i = 0; i < n; i++) {
@@ -188,7 +189,7 @@ export default function Page() {
       ctx.globalCompositeOperation = "source-over";
       // the dot: swells with the breath and throbs gently on top, about once every three seconds
       const throb = reduced ? 0 : Math.sin(t * 2 * Math.PI * 0.33) * 0.02;
-      const orbR = Rr * (0.13 + 0.12 * breathe + throb + (r.running ? 0.05 + ease * 0.08 : 0));
+      const orbR = Rr * Math.max(0.03, 0.14 + 0.15 * breathe + throb + (r.running ? 0.05 + ease * 0.08 : 0));
       const og = ctx.createRadialGradient(cx, cy, 0, cx, cy, orbR * 2.6);
       og.addColorStop(0, `hsla(${r.hue + 20 + drift},85%,${76 + ease * 10 + inhale * 10}%,${r.running ? 0.95 : 0.6})`);
       og.addColorStop(0.3, `hsla(${r.hue + drift * 0.5},80%,60%,${(r.running ? 0.3 + ease * 0.3 : 0.25) * (0.6 + 0.4 * inhale)})`);
@@ -208,9 +209,10 @@ export default function Page() {
         lastReadout = now; setReadout(`${r.audio.carrier.toFixed(2)} · ${(r.audio.carrier + r.audio.beat).toFixed(2)} · ${r.audio.beat.toFixed(2)}`);
         const m = markRef.current; if (m) { m.style.left = `${Math.max(0, Math.min(100, (r.audio.beat - 2) / 5 * 100))}%`; m.style.boxShadow = `0 0 10px 2px hsla(${r.hue},70%,70%,.55)`; }
       }
-      raf = requestAnimationFrame(draw);
+      raf = requestAnimationFrame(safe);
     };
-    raf = requestAnimationFrame(draw);
+    const safe = (now: number) => { try { draw(now); } catch (e) { console.warn("draw", e); raf = requestAnimationFrame(safe); } };
+    raf = requestAnimationFrame(safe);
     return () => cancelAnimationFrame(raf);
   }, []);
 
